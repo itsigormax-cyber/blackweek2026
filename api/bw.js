@@ -1,5 +1,5 @@
 // Black Week — auth multi-usuário + persistência via Vercel Blob
-import { put, list, getDownloadUrl } from '@vercel/blob'
+import { put, list, presignUrl } from '@vercel/blob'
 import { createHmac, pbkdf2, randomBytes, timingSafeEqual } from 'crypto'
 import { promisify } from 'util'
 
@@ -75,10 +75,10 @@ async function loadState(clinic_id) {
   if (blobs.length === 0) return null
   let signedUrl
   try {
-    signedUrl = await getDownloadUrl(blobs[0].url)
-    console.log('[bw] signedUrl[:120]:', String(signedUrl).slice(0, 120))
+    signedUrl = await presignUrl(blobs[0].url)
+    console.log('[bw] presignUrl[:200]:', String(signedUrl).slice(0, 200))
   } catch (e) {
-    console.error('[bw] getDownloadUrl threw:', e.message)
+    console.error('[bw] presignUrl threw:', e.message)
     throw e
   }
   const r = await fetch(signedUrl)
