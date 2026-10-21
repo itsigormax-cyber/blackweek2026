@@ -8,6 +8,12 @@ const pbkdf2Async = promisify(pbkdf2)
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://blackweek2026.vercel.app'
 const SESSION_SECRET = process.env.BW_SESSION_SECRET || 'dev-secret-change-me'
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000 // 24h
+const CLINIC_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/
+const MIN_PASSWORD_LEN = 6
+
+function isValidClinicId(id) {
+  return typeof id === 'string' && CLINIC_ID_RE.test(id)
+}
 
 function cors(req, res) {
   const origin = req.headers.origin || ''
@@ -99,6 +105,7 @@ export default async function handler(req, res) {
     const { token } = req.query
     const payload = verifyToken(token)
     if (!payload) return res.status(401).json({ error: 'Sessão inválida ou expirada' })
+    if (!isValidClinicId(payload.clinic_id)) return res.status(400).json({ error: 'ID de clínica inválido' })
     try {
       const state = await loadState(payload.clinic_id)
       return res.status(200).json({ state: sanitizeState(state) })
@@ -118,10 +125,17 @@ export default async function handler(req, res) {
   if (action === 'auth') {
     const { clinic_id, username, password } = body
     if (!clinic_id || !username || !password) return res.status(400).json({ error: 'Dados incompletos' })
+    if (!isValidClinicId(clinic_id)) return res.status(400).json({ error: 'ID de clínica inválido' })
 
     if (username === 'owner') {
       const ownerPw = getOwnerPassword(clinic_id)
-      if (!ownerPw || password !== ownerPw) return res.status(401).json({ error: 'Credenciais inválidas' })
+      let valid = false
+      if (ownerPw) {
+        try {
+          valid = timingSafeEqual(Buffer.from(password), Buffer.from(ownerPw))
+        } catch { valid = false } // lengths differ
+      }
+      if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' })
       const token = signToken({ clinic_id, username: 'owner', role: 'owner', exp: Date.now() + TOKEN_TTL_MS })
       return res.status(200).json({ ok: true, token, role: 'owner', username: 'owner' })
     }
@@ -145,6 +159,7 @@ export default async function handler(req, res) {
   const payload = verifyToken(body?.session_token)
   if (!payload) return res.status(401).json({ error: 'Sessão inválida ou expirada' })
   const { clinic_id } = payload
+  if (!isValidClinicId(clinic_id)) return res.status(400).json({ error: 'ID de clínica inválido' })
 
   // ── SAVE STATE ───────────────────────────────────────────────────────────
   if (action === 'save') {
@@ -173,6 +188,12 @@ export default async function handler(req, res) {
     if (!name || !username || !password || !['administrative', 'commercial'].includes(role)) {
       return res.status(400).json({ error: 'Dados inválidos' })
     }
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LEN) {
+      return res.status(400).json({ error: `Senha deve ter pelo menos ${MIN_PASSWORD_LEN} caracteres` })
+    }
+    if (!/^[a-zA-Z0-9_.-]{1,32}$/.test(username)) {
+      return res.status(400).json({ error: 'Username inválido (apenas letras, números, _ . -)' })
+    }
     try {
       const state = await loadState(clinic_id) || {}
       const users = state.users || []
@@ -194,6 +215,9 @@ export default async function handler(req, res) {
     if (payload.role !== 'owner') return res.status(403).json({ error: 'Apenas o proprietário pode redefinir senhas' })
     const { username, password } = body
     if (!username || !password) return res.status(400).json({ error: 'Dados inválidos' })
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LEN) {
+      return res.status(400).json({ error: `Senha deve ter pelo menos ${MIN_PASSWORD_LEN} caracteres` })
+    }
     try {
       const state = await loadState(clinic_id) || {}
       const users = state.users || []

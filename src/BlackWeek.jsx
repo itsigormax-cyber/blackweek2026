@@ -2,8 +2,20 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import sparkLogo from './assets/logo.webp'
 import {
   ALL_TASKS, PHASES, getTasksByDate, getTasksByPhase,
-  applyVars, DEFAULT_CONFIG, getDayProcedures, getProcedureEmoji
+  applyVars, DEFAULT_CONFIG, getDayProcedures,
+  getProcedureEmoji, getProcedureEmojiStrict, OUTROS_EMOJIS,
 } from './bw-tasks.js'
+
+function shuffleArray(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+const CLINIC_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,14 +83,23 @@ function WAPollCard({ poll, config, dayIndex }) {
   const isMultiProc = procedures.length > 1
   const isMulti = poll.type === 'multi' || poll.allowMultiple || isMultiProc
 
+  // Embaralha uma vez por montagem para emojis "outros" aleatórios sem repetir
+  const [shuffledOutros] = useState(() => shuffleArray(OUTROS_EMOJIS))
+
   let question
   let options
+  let outrosIdx = 0
+  const getEmoji = (name) => {
+    const known = getProcedureEmojiStrict(name)
+    if (known !== null) return known
+    return shuffledOutros[outrosIdx++ % shuffledOutros.length]
+  }
 
   if (isMultiProc) {
     // Dia com 2+ procedimentos: cada procedimento vira uma opção
     question = 'Qual você quer garantir hoje? 🤩'
     options = procedures.map(p => {
-      const em = getProcedureEmoji(p.name)
+      const em = getEmoji(p.name)
       const price = parseFloat(p.price)
       let priceStr = '[VALOR]'
       if (p.price) {
@@ -97,7 +118,7 @@ function WAPollCard({ poll, config, dayIndex }) {
     options = poll.options || []
   }
 
-  const emoji = !isMultiProc ? getProcedureEmoji(procedures[0]?.name || '') : ''
+  const emoji = !isMultiProc ? getEmoji(procedures[0]?.name || '') : ''
 
   return (
     <div className="wa-poll-card">
@@ -571,6 +592,12 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
     if (!newUser.name || !newUser.username || !newUser.password) {
       setUserMsg('Preencha todos os campos'); return
     }
+    if (newUser.password.length < 6) {
+      setUserMsg('Senha deve ter pelo menos 6 caracteres'); return
+    }
+    if (!/^[a-zA-Z0-9_.-]{1,32}$/.test(newUser.username)) {
+      setUserMsg('Username: apenas letras, números, _ . - (máx. 32)'); return
+    }
     setUserMsg('Salvando…')
     const res = await onUserAction('create_user', newUser)
     if (res?.ok) {
@@ -589,6 +616,7 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
   const doResetPw = async (username) => {
     const pw = resetPw[username]
     if (!pw) return
+    if (pw.length < 6) { setUserMsg('Senha deve ter pelo menos 6 caracteres'); return }
     setUserMsg('Salvando…')
     const res = await onUserAction('reset_password', { username, password: pw })
     if (res?.ok) {
@@ -760,7 +788,8 @@ function AuditTab({ audit }) {
 
 // ─── LoginScreen ──────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
-  const clinicId = new URLSearchParams(window.location.search).get('c')
+  const rawId = new URLSearchParams(window.location.search).get('c') || ''
+  const clinicId = CLINIC_ID_RE.test(rawId) ? rawId : null
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')

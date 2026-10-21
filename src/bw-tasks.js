@@ -22,7 +22,10 @@ const T = (id, phase, date, time, role, channel, title, note, scripts, checks, d
 })
 
 // Emoji correlacional por tipo de procedimento (sem 💉 nem 💋)
-export function getProcedureEmoji(name = '') {
+export const OUTROS_EMOJIS = ['🥵','🤭','🫣','🥹','🥰','😍','😎','😱','🤩','🤯']
+
+// Retorna null quando não há correspondência (para o caller decidir o fallback)
+export function getProcedureEmojiStrict(name = '') {
   const n = name.toLowerCase()
   if (/glut|bumbum|náde|nádega|pêssego/.test(n)) return '🍑'
   if (/corp|lipo|gordura|barriga|redução/.test(n)) return '🔥'
@@ -36,7 +39,11 @@ export function getProcedureEmoji(name = '') {
   if (/olho|pálpebra|blefaroplastia/.test(n)) return '👁️'
   if (/laser|luz|fotorejuven|carbon|peeling/.test(n)) return '💡'
   if (/gord|emagr|cavitação|criolip/.test(n)) return '🔥'
-  return '🤩'
+  return null
+}
+
+export function getProcedureEmoji(name = '', index = 0) {
+  return getProcedureEmojiStrict(name) ?? OUTROS_EMOJIS[index % OUTROS_EMOJIS.length]
 }
 
 // ─── PRÉ-CAMPANHA ─────────────────────────────────────────────────────────────
