@@ -1,5 +1,5 @@
 // Black Week — auth multi-usuário + persistência via Vercel Blob
-import { put, list, presignUrl } from '@vercel/blob'
+import { put, list, get } from '@vercel/blob'
 import { createHmac, pbkdf2, randomBytes, timingSafeEqual } from 'crypto'
 import { promisify } from 'util'
 
@@ -73,21 +73,10 @@ function verifyToken(token) {
 async function loadState(clinic_id) {
   const { blobs } = await list({ prefix: `bw/${clinic_id}/state.json` })
   if (blobs.length === 0) return null
-  let signedUrl
-  try {
-    signedUrl = await presignUrl(blobs[0].url)
-    console.log('[bw] presignUrl[:200]:', String(signedUrl).slice(0, 200))
-  } catch (e) {
-    console.error('[bw] presignUrl threw:', e.message)
-    throw e
-  }
-  const r = await fetch(signedUrl)
-  console.log('[bw] fetch status:', r.status)
-  if (!r.ok) {
-    const body = await r.text().catch(() => '')
-    throw new Error(`Blob ${r.status}: ${body.slice(0, 100)}`)
-  }
-  return await r.json()
+  const result = await get(blobs[0].url, { access: 'private' })
+  if (!result) return null
+  const text = await new Response(result.stream).text()
+  return JSON.parse(text)
 }
 
 async function saveState(clinic_id, state) {
