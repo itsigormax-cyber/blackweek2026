@@ -73,13 +73,13 @@ function verifyToken(token) {
 async function loadState(clinic_id) {
   const { blobs } = await list({ prefix: `bw/${clinic_id}/state.json` })
   if (blobs.length === 0) return null
-  const r = await fetch(blobs[0].url)
+  const r = await fetch(blobs[0].downloadUrl)
   return await r.json()
 }
 
 async function saveState(clinic_id, state) {
   await put(`bw/${clinic_id}/state.json`, JSON.stringify(state), {
-    access: 'public',
+    access: 'private',
     addRandomSuffix: false,
     contentType: 'application/json',
   })
