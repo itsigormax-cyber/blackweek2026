@@ -73,8 +73,16 @@ function verifyToken(token) {
 async function loadState(clinic_id) {
   const { blobs } = await list({ prefix: `bw/${clinic_id}/state.json` })
   if (blobs.length === 0) return null
-  const signedUrl = await getDownloadUrl(blobs[0].url)
+  let signedUrl
+  try {
+    signedUrl = await getDownloadUrl(blobs[0].url)
+    console.log('[bw] signedUrl[:120]:', String(signedUrl).slice(0, 120))
+  } catch (e) {
+    console.error('[bw] getDownloadUrl threw:', e.message)
+    throw e
+  }
   const r = await fetch(signedUrl)
+  console.log('[bw] fetch status:', r.status)
   if (!r.ok) {
     const body = await r.text().catch(() => '')
     throw new Error(`Blob ${r.status}: ${body.slice(0, 100)}`)
