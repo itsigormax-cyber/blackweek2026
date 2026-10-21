@@ -5,7 +5,7 @@ import { promisify } from 'util'
 
 const pbkdf2Async = promisify(pbkdf2)
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://meta-ads-dashboard-six-nu.vercel.app'
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://blackweek2026.vercel.app'
 const SESSION_SECRET = process.env.BW_SESSION_SECRET || 'dev-secret-change-me'
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000 // 24h
 
