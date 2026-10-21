@@ -73,10 +73,15 @@ function verifyToken(token) {
 async function loadState(clinic_id) {
   const { blobs } = await list({ prefix: `bw/${clinic_id}/state.json` })
   if (blobs.length === 0) return null
-  const r = await fetch(blobs[0].url, {
-    headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+  const b = blobs[0]
+  console.log('[bw] loadState blob url:', b.url?.slice(0,60), 'durl:', b.downloadUrl?.slice(0,60), 'token?', !!process.env.BLOB_READ_WRITE_TOKEN)
+  const r = await fetch(b.downloadUrl || b.url, {
+    headers: b.downloadUrl ? {} : { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
   })
-  return await r.json()
+  console.log('[bw] loadState fetch status:', r.status)
+  const json = await r.json()
+  console.log('[bw] loadState users:', json?.users?.length ?? 'no-users', Object.keys(json || {}))
+  return json
 }
 
 async function saveState(clinic_id, state) {
