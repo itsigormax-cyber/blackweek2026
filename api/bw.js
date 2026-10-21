@@ -1,5 +1,5 @@
 // Black Week — auth multi-usuário + persistência via Vercel Blob
-import { put, list } from '@vercel/blob'
+import { put, list, head } from '@vercel/blob'
 import { createHmac, pbkdf2, randomBytes, timingSafeEqual } from 'crypto'
 import { promisify } from 'util'
 
@@ -71,10 +71,15 @@ function verifyToken(token) {
 
 // ─── Blob state helpers ───────────────────────────────────────────────────────
 async function loadState(clinic_id) {
-  const { blobs } = await list({ prefix: `bw/${clinic_id}/state.json`, downloadExpiry: 60 })
+  const { blobs } = await list({ prefix: `bw/${clinic_id}/state.json` })
   if (blobs.length === 0) return null
-  const r = await fetch(blobs[0].downloadUrl)
-  if (!r.ok) throw new Error(`Blob fetch ${r.status}`)
+  const meta = await head(blobs[0].url)
+  console.log('[bw] head meta keys:', Object.keys(meta), 'durl[:120]:', String(meta.downloadUrl).slice(0, 120))
+  const r = await fetch(meta.downloadUrl)
+  if (!r.ok) {
+    const body = await r.text().catch(() => '')
+    throw new Error(`Blob ${r.status}: ${body.slice(0, 100)}`)
+  }
   return await r.json()
 }
 
