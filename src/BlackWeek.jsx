@@ -959,6 +959,22 @@ export default function BlackWeek() {
   }, [theme])
 
   useEffect(() => {
+    const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
+    if (!mq) return
+    const handler = (e) => {
+      try {
+        if (!localStorage.getItem('bw-theme')) {
+          setTheme(e.matches ? 'dark' : 'light')
+        }
+      } catch {
+        setTheme(e.matches ? 'dark' : 'light')
+      }
+    }
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
     if (!currentUser) return
     const load = async () => {
       setSyncing(true)
