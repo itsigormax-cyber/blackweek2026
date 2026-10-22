@@ -1531,6 +1531,7 @@ body {
 .toggle-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2); cursor: pointer; }
 .toggle-label:hover { color: var(--text); }
 .day-config-body { display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
+@media (max-width: 820px) { .day-config-body { grid-template-columns: 1fr 190px; gap: 14px; } }
 .day-config-form { display: flex; flex-direction: column; gap: 6px; }
 .proc-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .proc-name { flex: 2; min-width: 130px; }
@@ -1745,8 +1746,10 @@ select option { background: var(--raised); color: var(--text); }
   .login-card { padding: 28px 20px; margin: 16px; }
   .crm-kanban { grid-template-columns: 1fr; }
   .day-config { padding: 14px 14px; }
-  .day-config-body { grid-template-columns: 1fr; }
-  .day-config-preview { display: none; }
+  .day-config-body { grid-template-columns: 1fr; gap: 12px; }
+  .day-config-preview { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .day-config-preview .wa-bubble { flex: 1 1 200px; min-width: 0; }
+  .preview-label { width: 100%; }
   .config-section h2 { font-size: 18px; }
   .nav-btn { padding: 0 10px; font-size: 12px; }
 }
