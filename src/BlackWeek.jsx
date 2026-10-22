@@ -955,6 +955,10 @@ export default function BlackWeek() {
   }
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
     if (!currentUser) return
     const load = async () => {
       setSyncing(true)
