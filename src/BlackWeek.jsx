@@ -646,6 +646,11 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
         {DAY_LABELS.map((label, di) => {
           const day = (config.days || DEFAULT_CONFIG.days)[di] || {}
           const procs = getDayProcedures(day)
+          const firstProc = procs[0] || {}
+          const previewProc = firstProc.name || '[Procedimento]'
+          const previewVal = firstProc.price ? `R$${firstProc.price}` : '[Valor]'
+          const previewCond = day.condition || ''
+          const isMultiDay = di === 3
           return (
             <div key={di} className="day-config card">
               <div className="day-config-header">
@@ -655,29 +660,69 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
                   Parcelamento
                 </label>
               </div>
-              {procs.map((proc, pi) => (
-                <div key={pi} className="proc-row">
-                  <input placeholder="Procedimento" value={proc.name} onChange={e => updateProc(di, pi, 'name', e.target.value)} className="proc-name" />
-                  <input placeholder="Valor (R$)" value={proc.price} onChange={e => updateProc(di, pi, 'price', e.target.value)} className="proc-price" />
-                  <input placeholder="Vagas" value={proc.vagas} onChange={e => updateProc(di, pi, 'vagas', e.target.value)} className="proc-vagas" />
-                  {day.showInstallments && (
-                    <>
-                      <input placeholder="Parcelas" value={proc.installments} onChange={e => updateProc(di, pi, 'installments', e.target.value)} className="proc-install" />
-                      <input placeholder="R$/parcela" value={proc.installmentPrice} onChange={e => updateProc(di, pi, 'installmentPrice', e.target.value)} className="proc-install" />
-                    </>
-                  )}
-                  {pi > 0 && <button className="btn-ghost-sm danger" onClick={() => removeProc(di, pi)}>✕</button>}
+              <div className="day-config-body">
+                <div className="day-config-form">
+                  {procs.map((proc, pi) => (
+                    <div key={pi} className="proc-row">
+                      <input placeholder="Procedimento" value={proc.name} onChange={e => updateProc(di, pi, 'name', e.target.value)} className="proc-name" />
+                      <input placeholder="Valor (R$)" value={proc.price} onChange={e => updateProc(di, pi, 'price', e.target.value)} className="proc-price" />
+                      <input placeholder="Vagas" value={proc.vagas} onChange={e => updateProc(di, pi, 'vagas', e.target.value)} className="proc-vagas" />
+                      {day.showInstallments && (
+                        <>
+                          <input placeholder="Parcelas" value={proc.installments} onChange={e => updateProc(di, pi, 'installments', e.target.value)} className="proc-install" />
+                          <input placeholder="R$/parcela" value={proc.installmentPrice} onChange={e => updateProc(di, pi, 'installmentPrice', e.target.value)} className="proc-install" />
+                        </>
+                      )}
+                      {pi > 0 && <button className="btn-ghost-sm danger" onClick={() => removeProc(di, pi)}>✕</button>}
+                    </div>
+                  ))}
+                  <button className="btn-ghost-sm" onClick={() => addProc(di)}>+ Procedimento</button>
+                  <div className="form-field" style={{ marginTop: 8 }}>
+                    <label>Condição do Dia <span className="field-hint">→ vira a mensagem de revelação</span></label>
+                    <textarea
+                      rows={3}
+                      placeholder={'Ex: Bioestimuladores 20% off só para pacientes do grupo VIP 🤯🤯🤯'}
+                      value={previewCond}
+                      onChange={e => updateDay(di, d => ({ ...d, condition: e.target.value }))}
+                      className="day-condition-textarea"
+                    />
+                  </div>
                 </div>
-              ))}
-              <button className="btn-ghost-sm" onClick={() => addProc(di)}>+ Procedimento</button>
-              <div className="form-field" style={{ marginTop: 4 }}>
-                <label>Condição do Dia</label>
-                <input
-                  placeholder="Ex: Bioestimuladores 20% off para pacientes do grupo"
-                  value={day.condition || ''}
-                  onChange={e => updateDay(di, d => ({ ...d, condition: e.target.value }))}
-                  className="day-condition"
-                />
+                <div className="day-config-preview">
+                  <div className="preview-label">Preview da enquete</div>
+                  {previewCond && (
+                    <div className="wa-bubble wa-reveal">
+                      <pre className="wa-reveal-text">{previewCond}</pre>
+                    </div>
+                  )}
+                  <div className="wa-bubble wa-poll">
+                    <div className="wa-poll-header">
+                      <span className="wa-poll-icon">📊</span>
+                      <span className="wa-poll-title">ENQUETE</span>
+                    </div>
+                    <div className="wa-poll-question">
+                      {isMultiDay ? 'Qual vai garantir hoje?' : `${previewProc} por apenas ${previewVal} 🤯`}
+                    </div>
+                    <div className="wa-poll-options">
+                      {isMultiDay ? (
+                        procs.length > 0 ? procs.map((p, i) => (
+                          <div key={i} className="wa-poll-option">
+                            <span className="wa-radio" />
+                            <span>{p.name || `[Procedimento ${i+1}]`}</span>
+                          </div>
+                        )) : (
+                          <div className="wa-poll-option"><span className="wa-radio" /><span>[Procedimento 1]</span></div>
+                        )
+                      ) : (
+                        <>
+                          <div className="wa-poll-option"><span className="wa-radio" /><span>QUERO 🤯🤯🤯</span></div>
+                          <div className="wa-poll-option"><span className="wa-radio" /><span>QUERO MUITO</span></div>
+                        </>
+                      )}
+                    </div>
+                    {isMultiDay && <div className="wa-poll-multi">✓ Múltiplas respostas</div>}
+                  </div>
+                </div>
               </div>
             </div>
           )
@@ -1481,14 +1526,43 @@ body {
   transition: box-shadow .2s; box-shadow: var(--shadow);
 }
 .day-config:hover { box-shadow: 0 4px 16px rgba(0,0,0,.09); }
-.day-config-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.day-config-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .day-label { font-weight: 700; font-size: 15px; }
 .toggle-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2); cursor: pointer; }
 .toggle-label:hover { color: var(--text); }
+.day-config-body { display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
+.day-config-form { display: flex; flex-direction: column; gap: 6px; }
 .proc-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .proc-name { flex: 2; min-width: 130px; }
 .proc-price,.proc-vagas,.proc-install { flex: 1; min-width: 70px; }
-.day-condition { width: 100%; }
+.day-condition-textarea { width: 100%; resize: vertical; font-family: inherit; font-size: 13px; }
+.field-hint { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: 4px; }
+
+/* ── WhatsApp preview ── */
+.day-config-preview { display: flex; flex-direction: column; gap: 6px; }
+.preview-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); margin-bottom: 2px; }
+.wa-bubble { border-radius: 8px 8px 8px 0; padding: 10px 12px; max-width: 100%; }
+.wa-reveal { background: #dcf8c6; color: #111; }
+[data-theme="dark"] .wa-reveal { background: #1a3a1a; color: #e8f5e2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-reveal { background: #1a3a1a; color: #e8f5e2; } }
+.wa-reveal-text { font-size: 12px; line-height: 1.45; white-space: pre-wrap; margin: 0; font-family: inherit; }
+.wa-poll { background: #fffde7; color: #111; border: 1px solid rgba(0,0,0,.08); }
+[data-theme="dark"] .wa-poll { background: #1e1e12; color: #f5f0d0; border-color: rgba(255,255,255,.08); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-poll { background: #1e1e12; color: #f5f0d0; border-color: rgba(255,255,255,.08); } }
+.wa-poll-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.wa-poll-icon { font-size: 16px; }
+.wa-poll-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: #128c7e; }
+[data-theme="dark"] .wa-poll-title { color: #25d366; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-poll-title { color: #25d366; } }
+.wa-poll-question { font-size: 13px; font-weight: 600; line-height: 1.4; margin-bottom: 8px; }
+.wa-poll-options { display: flex; flex-direction: column; gap: 5px; }
+.wa-poll-option { display: flex; align-items: center; gap: 7px; font-size: 12px; padding: 5px 8px; border-radius: 6px; background: rgba(0,0,0,.05); }
+[data-theme="dark"] .wa-poll-option { background: rgba(255,255,255,.06); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-poll-option { background: rgba(255,255,255,.06); } }
+.wa-radio { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #128c7e; flex-shrink: 0; }
+[data-theme="dark"] .wa-radio { border-color: #25d366; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-radio { border-color: #25d366; } }
+.wa-poll-multi { font-size: 10px; color: var(--text3); margin-top: 6px; }
 
 /* ── Users ── */
 .users-list { display: flex; flex-direction: column; gap: 6px; }
@@ -1671,6 +1745,8 @@ select option { background: var(--raised); color: var(--text); }
   .login-card { padding: 28px 20px; margin: 16px; }
   .crm-kanban { grid-template-columns: 1fr; }
   .day-config { padding: 14px 14px; }
+  .day-config-body { grid-template-columns: 1fr; }
+  .day-config-preview { display: none; }
   .config-section h2 { font-size: 18px; }
   .nav-btn { padding: 0 10px; font-size: 12px; }
 }

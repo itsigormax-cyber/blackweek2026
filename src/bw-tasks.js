@@ -237,7 +237,7 @@ function generateCampaignDay({ dayIndex, date }) {
   const revelationScripts = [
     {
       label: 'Mensagem de revelação',
-      text: w.msg1000_reveal,
+      text: '{{CONDITION}}',
       ...(w.msg1000_reveal_note ? { note: w.msg1000_reveal_note } : {}),
       atAll: true,
     },
@@ -352,6 +352,7 @@ export function applyVars(text, config, dayIndex = null) {
     VALOR:        proc?.price        ? `R$${proc.price}` : '[VALOR]',
     PROCEDIMENTO: proc?.name         || (dayIndex ? `Dia ${dayIndex}` : '[PROCEDIMENTO]'),
     EMOJI:        getProcedureEmoji(proc?.name || ''),
+    CONDITION:    day?.condition     || '[Preencha a condição do dia nas configurações]',
   }
   let result = text
   Object.entries(vars).forEach(([k, v]) => {
