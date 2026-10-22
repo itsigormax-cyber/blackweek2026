@@ -962,13 +962,9 @@ export default function BlackWeek() {
     const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
     if (!mq) return
     const handler = (e) => {
-      try {
-        if (!localStorage.getItem('bw-theme')) {
-          setTheme(e.matches ? 'dark' : 'light')
-        }
-      } catch {
-        setTheme(e.matches ? 'dark' : 'light')
-      }
+      const next = e.matches ? 'dark' : 'light'
+      setTheme(next)
+      try { localStorage.setItem('bw-theme', next) } catch {}
     }
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
