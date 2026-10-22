@@ -939,7 +939,11 @@ export default function BlackWeek() {
   const [syncing, setSyncing] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null)
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('bw-theme') || 'light' } catch { return 'light' }
+    try {
+      const stored = localStorage.getItem('bw-theme')
+      if (stored) return stored
+      return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'
+    } catch { return 'light' }
   })
   const saveTimer = useRef(null)
   const pendingSave = useRef(null)
@@ -1197,7 +1201,7 @@ html, body { overflow-x: hidden; }
   --nav-bg: rgba(255,255,255,.82);
   --border: rgba(0,0,0,.08);
 }
-[data-theme="dark"] {
+[data-theme="dark"], [data-theme="dark"] :root {
   --bg:      #000000;
   --base:    #111111;
   --raised:  #1c1c1e;
@@ -1213,6 +1217,42 @@ html, body { overflow-x: hidden; }
   --shadow-lg: 0 8px 40px rgba(0,0,0,.95);
   --nav-bg: rgba(0,0,0,.92);
   --border: rgba(255,255,255,.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      #000000;
+    --base:    #111111;
+    --raised:  #1c1c1e;
+    --hover:   #2c2c2e;
+    --active:  #3a3a3c;
+    --text:    #ffffff;
+    --text2:   #c7c7cc;
+    --text3:   #8e8e93;
+    --green:   #30d158;
+    --blue:    #3d8bc8;
+    --red:     #ff453a;
+    --shadow: 0 4px 20px rgba(0,0,0,.8);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,.95);
+    --nav-bg: rgba(0,0,0,.92);
+    --border: rgba(255,255,255,.1);
+  }
+}
+[data-theme="light"] {
+  --bg:      #ffffff;
+  --base:    #f5f5f7;
+  --raised:  #ffffff;
+  --hover:   #ebebf0;
+  --active:  #d8d8df;
+  --text:    #1d1d1f;
+  --text2:   #6e6e73;
+  --text3:   #86868b;
+  --green:   #34c759;
+  --blue:    #0071e3;
+  --red:     #ff3b30;
+  --shadow: 0 2px 12px rgba(0,0,0,.07);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.13);
+  --nav-bg: rgba(255,255,255,.82);
+  --border: rgba(0,0,0,.08);
 }
 body {
   background: var(--bg);
@@ -1682,9 +1722,25 @@ select option { background: var(--raised); color: var(--text); }
 .empty-icon { font-size: 40px; margin-bottom: 14px; opacity: .4; }
 
 /* ── Dark mode component overrides ── */
-[data-theme="dark"] .bw-app { background: var(--bg); }
+[data-theme="dark"] .bw-app,
 [data-theme="dark"] .login-screen { background: var(--bg); }
+@media (prefers-color-scheme: dark) {
+  .bw-app, .login-screen, body { background: var(--bg); color: var(--text); }
+  .bw-header { background: var(--nav-bg); border-color: var(--border); }
+  .nav-btn.active { background: rgba(232,146,58,.15); color: var(--accent); }
+  input, select, textarea { background: #111111; border-color: rgba(255,255,255,.12); color: #ffffff; }
+  input::placeholder, textarea::placeholder { color: #6e6e73; }
+  .task-card { border-color: rgba(255,255,255,.08); }
+  .task-card:hover { background: var(--raised); border-color: rgba(255,255,255,.13); }
+  .crm-card, .user-row, .day-config, .new-user-form, .login-card, .card { border-color: rgba(255,255,255,.08); }
+  .copy-btn { background: #1c1c1e; border-color: rgba(255,255,255,.12); color: var(--text2); }
+  .copy-btn.copied { background: rgba(48,209,88,.12); color: #30d158; border-color: rgba(48,209,88,.25); }
+  .btn-ghost-sm { background: #1c1c1e; border-color: rgba(255,255,255,.1); color: var(--text2); }
+  .progress-pill { background: #1c1c1e; border-color: rgba(255,255,255,.1); }
+  .script-text { background: var(--bg); color: var(--text2); }
+}
 [data-theme="dark"] .login-card { background: var(--base); }
+@media (prefers-color-scheme: dark) { .login-card { background: var(--base); } }
 [data-theme="dark"] .wa-poll-card { background: #0d1e13; border-color: rgba(48,209,88,.12); }
 [data-theme="dark"] .wa-poll-title { color: #30d158; }
 [data-theme="dark"] .wa-poll-multi { background: rgba(48,209,88,.1); border-color: rgba(48,209,88,.2); color: #30d158; }
