@@ -24,13 +24,18 @@ function cors(req, res) {
   res.setHeader('Vary', 'Origin')
 }
 
-// ─── BW_CLINICS owner passwords ──────────────────────────────────────────────
-function getOwnerPassword(clinic_id) {
+// ─── BW_CLINICS owner credentials ────────────────────────────────────────────
+// Suporta formato antigo {clinic_id: "senha"} e novo {clinic_id: {username, password}}
+function getOwnerCreds(clinic_id) {
   const raw = process.env.BW_CLINICS
   if (!raw) return null
   try {
     const map = JSON.parse(raw)
-    return map[clinic_id] || null
+    const entry = map[clinic_id]
+    if (!entry) return null
+    if (typeof entry === 'string') return { username: 'owner', password: entry }
+    if (entry.username && entry.password) return { username: entry.username, password: entry.password }
+    return null
   } catch { return null }
 }
 
@@ -130,17 +135,15 @@ export default async function handler(req, res) {
     if (!clinic_id || !username || !password) return res.status(400).json({ error: 'Dados incompletos' })
     if (!isValidClinicId(clinic_id)) return res.status(400).json({ error: 'ID de clínica inválido' })
 
-    if (username === 'owner') {
-      const ownerPw = getOwnerPassword(clinic_id)
+    const ownerCreds = getOwnerCreds(clinic_id)
+    if (ownerCreds && username === ownerCreds.username) {
       let valid = false
-      if (ownerPw) {
-        try {
-          valid = timingSafeEqual(Buffer.from(password), Buffer.from(ownerPw))
-        } catch { valid = false } // lengths differ
-      }
+      try {
+        valid = timingSafeEqual(Buffer.from(password), Buffer.from(ownerCreds.password))
+      } catch { valid = false } // lengths differ
       if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' })
-      const token = signToken({ clinic_id, username: 'owner', role: 'owner', exp: Date.now() + TOKEN_TTL_MS })
-      return res.status(200).json({ ok: true, token, role: 'owner', username: 'owner' })
+      const token = signToken({ clinic_id, username: ownerCreds.username, role: 'owner', exp: Date.now() + TOKEN_TTL_MS })
+      return res.status(200).json({ ok: true, token, role: 'owner', username: ownerCreds.username })
     }
 
     // Consultora login
