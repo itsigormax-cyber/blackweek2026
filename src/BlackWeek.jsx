@@ -947,6 +947,8 @@ export default function BlackWeek() {
   })
   const saveTimer = useRef(null)
   const pendingSave = useRef(null)
+  const inactivityTimer = useRef(null)
+  const INACTIVITY_MS = 4 * 60 * 60 * 1000
 
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light'
@@ -969,6 +971,23 @@ export default function BlackWeek() {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
+
+  useEffect(() => {
+    if (!currentUser) return
+    const resetTimer = () => {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+      inactivityTimer.current = setTimeout(() => {
+        handleLogout()
+      }, INACTIVITY_MS)
+    }
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+    events.forEach(ev => window.addEventListener(ev, resetTimer, { passive: true }))
+    resetTimer()
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, resetTimer))
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    }
+  }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!currentUser) return
