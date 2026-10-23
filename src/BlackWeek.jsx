@@ -124,8 +124,10 @@ function WAPollCard({ poll, config, dayIndex }) {
       const price = parseFloat(p.price)
       let priceStr = '[VALOR]'
       if (p.price) {
-        if (price > 1000 && p.installments && p.installmentPrice) {
-          priceStr = `${p.installments}x de R$${p.installmentPrice}`
+        const dayConfig = config.days?.[dayIndex - 1]
+        if (dayConfig?.showInstallments) {
+          const { installments, installmentPrice } = calcInstallments(p.price)
+          priceStr = installments ? `${installments}x de R$${installmentPrice}` : `R$${p.price}`
         } else {
           priceStr = `R$${p.price}`
         }
@@ -163,6 +165,10 @@ function WAPollCard({ poll, config, dayIndex }) {
         ))}
       </div>
       <div className="wa-poll-note">Crie esta enquete diretamente no WhatsApp</div>
+      <CopyButton
+        text={[`📊 ENQUETE`, question ? `${emoji ? emoji + ' ' : ''}${question}` : '', ...options.map(o => `• ${o}`)].filter(Boolean).join('\n')}
+        label="enquete"
+      />
     </div>
   )
 }
@@ -587,7 +593,7 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
 
   const addProc = (di) => updateDay(di, day => ({
     ...day,
-    procedures: [...getDayProcedures(day), { name: '', price: '', vagas: '', installments: '', installmentPrice: '' }]
+    procedures: [...getDayProcedures(day), { name: '', price: '' }]
   }))
 
   const removeProc = (di, pi) => updateDay(di, day => ({
@@ -690,13 +696,6 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
                     <div key={pi} className="proc-row">
                       <input placeholder="Procedimento" value={proc.name} onChange={e => updateProc(di, pi, 'name', e.target.value)} className="proc-name" />
                       <input placeholder="Valor (R$)" value={proc.price} onChange={e => updateProc(di, pi, 'price', e.target.value)} className="proc-price" />
-                      <input placeholder="Vagas" value={proc.vagas} onChange={e => updateProc(di, pi, 'vagas', e.target.value)} className="proc-vagas" />
-                      {day.showInstallments && (
-                        <>
-                          <input placeholder="Parcelas" value={proc.installments} onChange={e => updateProc(di, pi, 'installments', e.target.value)} className="proc-install" />
-                          <input placeholder="R$/parcela" value={proc.installmentPrice} onChange={e => updateProc(di, pi, 'installmentPrice', e.target.value)} className="proc-install" />
-                        </>
-                      )}
                       {pi > 0 && <button className="btn-ghost-sm danger" onClick={() => removeProc(di, pi)}>✕</button>}
                     </div>
                   ))}
