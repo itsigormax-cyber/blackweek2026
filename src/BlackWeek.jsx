@@ -40,8 +40,9 @@ function canSeeTask(task, role) {
 
 function calcInstallments(price) {
   const p = parseFloat(price)
-  if (isNaN(p) || p <= 0) return { installments: '', installmentPrice: '' }
-  const n = p <= 800 ? 10 : 12
+  if (isNaN(p) || p <= 99) return { installments: '', installmentPrice: '' }
+  const n = Math.min(12, Math.floor(p / 99))
+  if (n < 2) return { installments: '', installmentPrice: '' }
   const pp = Math.ceil((p / n) * 100) / 100
   return { installments: String(n), installmentPrice: pp.toFixed(2) }
 }
@@ -104,16 +105,14 @@ function WAPollCard({ poll, config, dayIndex }) {
   const isMultiProc = procedures.length > 1
   const isMulti = poll.type === 'multi' || poll.allowMultiple || isMultiProc
 
-  // Embaralha uma vez por montagem para emojis "outros" aleatórios sem repetir
-  const [shuffledOutros] = useState(() => shuffleArray(OUTROS_EMOJIS))
-
   let question
   let options
-  let outrosIdx = 0
+  // Emojis alternam por dia: dia 1 = índice 0, dia 2 = índice 1, etc.
+  let outrosIdx = dayIndex ? (dayIndex - 1) : 0
   const getEmoji = (name) => {
     const known = getProcedureEmojiStrict(name)
     if (known !== null) return known
-    return shuffledOutros[outrosIdx++ % shuffledOutros.length]
+    return OUTROS_EMOJIS[outrosIdx++ % OUTROS_EMOJIS.length]
   }
 
   if (isMultiProc) {
@@ -125,9 +124,8 @@ function WAPollCard({ poll, config, dayIndex }) {
       let priceStr = '[VALOR]'
       if (p.price) {
         const dayConfig = config.days?.[dayIndex - 1]
-        if (dayConfig?.showInstallments) {
-          const { installments, installmentPrice } = calcInstallments(p.price)
-          priceStr = installments ? `${installments}x de R$${installmentPrice}` : `R$${p.price}`
+        if (dayConfig?.showInstallments && p.installments && p.installmentPrice) {
+          priceStr = `${p.installments}x de R$${p.installmentPrice}`
         } else {
           priceStr = `R$${p.price}`
         }
@@ -696,6 +694,12 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
                     <div key={pi} className="proc-row">
                       <input placeholder="Procedimento" value={proc.name} onChange={e => updateProc(di, pi, 'name', e.target.value)} className="proc-name" />
                       <input placeholder="Valor (R$)" value={proc.price} onChange={e => updateProc(di, pi, 'price', e.target.value)} className="proc-price" />
+                      {day.showInstallments && (
+                        <>
+                          <input placeholder="Parcelas" value={proc.installments || ''} onChange={e => updateProc(di, pi, 'installments', e.target.value)} className="proc-install" />
+                          <input placeholder="R$/parcela" value={proc.installmentPrice || ''} onChange={e => updateProc(di, pi, 'installmentPrice', e.target.value)} className="proc-install" />
+                        </>
+                      )}
                       {pi > 0 && <button className="btn-ghost-sm danger" onClick={() => removeProc(di, pi)}>✕</button>}
                     </div>
                   ))}
