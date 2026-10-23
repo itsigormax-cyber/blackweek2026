@@ -52,6 +52,27 @@ function fmtDate(iso) {
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function parseDateLocal(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function fmtTaskDate(iso) {
+  if (!iso) return ''
+  const d = parseDateLocal(iso)
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}/${mm} · ${days[d.getDay()]}`
+}
+
+function isToday(iso) {
+  if (!iso) return false
+  const t = parseDateLocal(iso)
+  const n = new Date()
+  return t.getFullYear() === n.getFullYear() && t.getMonth() === n.getMonth() && t.getDate() === n.getDate()
+}
+
 const CAMPAIGN_DATES = [
   '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'
 ]
@@ -147,7 +168,7 @@ function WAPollCard({ poll, config, dayIndex }) {
 }
 
 // ─── TaskCard ─────────────────────────────────────────────────────────────────
-function TaskCard({ task, status, config, onStatusChange, onCopy, dimmed }) {
+function TaskCard({ task, status, config, onStatusChange, onCopy, dimmed, showDate }) {
   const s_list = task.scripts || []
   const c_list = task.checks || []
   const di = task.dayIndex
@@ -156,6 +177,7 @@ function TaskCard({ task, status, config, onStatusChange, onCopy, dimmed }) {
     <div className={`task-card status-${status}${dimmed ? ' dimmed' : ''}`}>
       <div className="task-header">
         <div className="task-meta">
+          {showDate && task.date && <span className="task-date">{fmtTaskDate(task.date)}</span>}
           {task.time && <span className="task-time">⏰ {task.time}</span>}
           {task.channel && <span className={`task-channel ch-${task.channel}`}>{channelLabel(task.channel)}</span>}
           {task.role && <span className={`task-role role-${task.role}`}>{roleLabel(task.role)}</span>}
@@ -394,6 +416,7 @@ function PlaybookTab({ taskStates, config, currentUser, onStatusChange, onCopy }
               >
                 <span>{ph.icon}</span>
                 <span className="phase-chip-name">{ph.label}</span>
+                {ph.dates && <span className="phase-chip-date">{ph.dates}</span>}
                 {prog && <span className="phase-chip-prog">{prog.done}/{prog.total}</span>}
               </button>
             )
@@ -414,6 +437,7 @@ function PlaybookTab({ taskStates, config, currentUser, onStatusChange, onCopy }
                 config={config}
                 onStatusChange={onStatusChange}
                 onCopy={(label) => onCopy(t.id, label)}
+                showDate
               />
             )
           })
@@ -927,6 +951,105 @@ function LoginScreen({ onLogin }) {
   )
 }
 
+// ─── CalendarTab ─────────────────────────────────────────────────────────────
+function CalendarTab({ taskStates, config, currentUser, onStatusChange, onCopy }) {
+  const now = new Date()
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  const DAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
+  const CAMPAIGN_PHASE_MAP = {
+    'pre': null, 'setup': null, 'patients': null,
+    'week_before': null, 'countdown': null, 'training': null, 'precheck': null,
+    'day1':'Dia 1', 'day2':'Dia 2', 'day3':'Dia 3', 'day4':'Dia 4', 'day5':'Dia 5',
+    'closing': null, 'post': null,
+  }
+
+  // Group all tasks by date
+  const byDate = {}
+  ALL_TASKS.filter(t => t.date && canSeeTask(t, currentUser.role)).forEach(t => {
+    if (!byDate[t.date]) byDate[t.date] = []
+    byDate[t.date].push(t)
+  })
+  const dates = Object.keys(byDate).sort()
+
+  // Find today's index in the campaign dates
+  const campaignDates = ['2026-11-09','2026-11-10','2026-11-11','2026-11-12','2026-11-13']
+  const todayCampaignIdx = campaignDates.indexOf(todayIso)
+
+  return (
+    <div className="tab-content calendar-tab">
+      {/* Campaign day banner */}
+      {todayCampaignIdx >= 0 && (
+        <div className="cal-today-banner">
+          🔥 Hoje é o <strong>Dia {todayCampaignIdx + 1}</strong> da campanha!
+        </div>
+      )}
+      {!campaignDates.includes(todayIso) && todayIso < '2026-11-09' && (
+        <div className="cal-today-banner cal-pre-banner">
+          📅 Faltam {Math.round((parseDateLocal('2026-11-09') - now) / 86400000)} dias para o Dia 1
+        </div>
+      )}
+      {todayIso > '2026-11-13' && (
+        <div className="cal-today-banner cal-post-banner">🏆 Campanha encerrada!</div>
+      )}
+
+      <div className="cal-list">
+        {dates.map(date => {
+          const tasks = byDate[date]
+          const d = parseDateLocal(date)
+          const dayName = DAY_NAMES[d.getDay()]
+          const dd = String(d.getDate()).padStart(2,'0')
+          const mm = String(d.getMonth()+1).padStart(2,'0')
+          const isT = date === todayIso
+          const isPast = date < todayIso
+          const campaignDay = CAMPAIGN_PHASE_MAP[tasks[0]?.phase]
+          const phaseMeta = PHASES.find(p => p.id === tasks[0]?.phase)
+          const done = tasks.filter(t => taskStates[t.id]?.status === 'done').length
+
+          return (
+            <div key={date} className={`cal-day-card${isT ? ' cal-today' : ''}${isPast ? ' cal-past' : ''}`}>
+              <div className="cal-day-header">
+                <div className="cal-day-left">
+                  <div className="cal-day-number">{dd}/{mm}</div>
+                  <div className="cal-day-name">{dayName}</div>
+                  {campaignDay && <div className="cal-campaign-badge">{campaignDay}</div>}
+                  {isT && <div className="cal-today-badge">HOJE</div>}
+                </div>
+                <div className="cal-day-right">
+                  {phaseMeta && <span className="cal-phase-label">{phaseMeta.icon} {phaseMeta.label}</span>}
+                  <span className="cal-progress">{done}/{tasks.length}</span>
+                </div>
+              </div>
+              <div className="cal-task-list">
+                {tasks.map(t => {
+                  const status = computeStatus(t.id, t.date, t.time, taskStates, now)
+                  return (
+                    <div key={t.id} className={`cal-task-row status-${status}`}>
+                      <button
+                        className={`cal-task-check${status === 'done' ? ' done' : ''}`}
+                        onClick={() => onStatusChange(t.id, status === 'done' ? 'pending' : 'done', t.date, t.time)}
+                        aria-label="Marcar concluído"
+                      >
+                        {status === 'done' ? '✓' : ''}
+                      </button>
+                      <div className="cal-task-info">
+                        <span className="cal-task-title">{t.title}</span>
+                        <div className="cal-task-meta">
+                          {t.time && <span className="cal-task-time">⏰ {t.time}</span>}
+                          <span className={`task-channel ch-${t.channel}`}>{channelLabel(t.channel)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main BlackWeek ───────────────────────────────────────────────────────────
 export default function BlackWeek() {
   const [currentUser, setCurrentUser] = useState(null)
@@ -1147,11 +1270,12 @@ export default function BlackWeek() {
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />
 
   const TABS = [
-    { id: 'today',    label: '📅 Hoje',      show: true },
-    { id: 'playbook', label: '📋 Playbook',  show: true },
-    { id: 'crm',      label: '👥 CRM',       show: true },
-    { id: 'setup',    label: '⚙️ Config',    show: true },
-    { id: 'audit',    label: '🔍 Auditoria', show: currentUser.role === 'owner' },
+    { id: 'today',    label: '📅 Hoje',       show: true },
+    { id: 'calendar', label: '🗓️ Calendário', show: true },
+    { id: 'playbook', label: '📋 Playbook',   show: true },
+    { id: 'crm',      label: '👥 CRM',        show: true },
+    { id: 'setup',    label: '⚙️ Config',     show: true },
+    { id: 'audit',    label: '🔍 Auditoria',  show: currentUser.role === 'owner' },
   ]
 
   const doneTasks = Object.values(taskStates).filter(s => s?.status === 'done').length
@@ -1188,6 +1312,9 @@ export default function BlackWeek() {
       <main className="bw-main">
         {activeTab === 'today' && (
           <TodayTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
+        )}
+        {activeTab === 'calendar' && (
+          <CalendarTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
         )}
         {activeTab === 'playbook' && (
           <PlaybookTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
@@ -1548,7 +1675,43 @@ body {
 .phase-chip.active { background: var(--text); border-color: var(--text); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .phase-chip.active .phase-chip-prog { color: rgba(255,255,255,.75); }
 .phase-chip-name { font-size: 12px; font-weight: 500; letter-spacing: -.01em; }
+.phase-chip-date { font-size: 10px; color: var(--text3); font-weight: 500; opacity: .85; }
 .phase-chip-prog { font-size: 11px; color: var(--green); font-weight: 600; opacity: .9; }
+.phase-chip.active .phase-chip-date { color: rgba(255,255,255,.65); }
+
+/* ── Task date tag ── */
+.task-date { font-size: 11px; background: var(--base); color: var(--text3); border: 1px solid var(--border); border-radius: 980px; padding: 1px 8px; font-weight: 500; }
+
+/* ── Calendar Tab ── */
+.calendar-tab { display: flex; flex-direction: column; gap: 0; }
+.cal-today-banner { margin: 0 0 16px; padding: 12px 16px; border-radius: var(--r); background: rgba(232,146,58,.12); border: 1px solid rgba(232,146,58,.3); color: var(--accent); font-size: 14px; font-weight: 600; }
+.cal-pre-banner { background: rgba(0,113,227,.08); border-color: rgba(0,113,227,.2); color: var(--blue); }
+.cal-post-banner { background: rgba(52,199,89,.1); border-color: rgba(52,199,89,.2); color: var(--green); }
+.cal-list { display: flex; flex-direction: column; gap: 10px; }
+.cal-day-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; transition: border-color .15s; }
+.cal-day-card.cal-today { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(232,146,58,.15); }
+.cal-day-card.cal-past { opacity: .7; }
+.cal-day-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--base); }
+.cal-day-left { display: flex; align-items: center; gap: 8px; }
+.cal-day-number { font-size: 17px; font-weight: 700; letter-spacing: -.02em; color: var(--text); }
+.cal-day-name { font-size: 12px; color: var(--text3); font-weight: 500; }
+.cal-campaign-badge { font-size: 11px; font-weight: 700; background: rgba(232,146,58,.15); color: var(--accent); border: 1px solid rgba(232,146,58,.3); border-radius: 980px; padding: 1px 8px; }
+.cal-today-badge { font-size: 10px; font-weight: 800; background: var(--accent); color: #fff; border-radius: 980px; padding: 2px 8px; letter-spacing: .04em; }
+.cal-day-right { display: flex; align-items: center; gap: 8px; }
+.cal-phase-label { font-size: 11px; color: var(--text3); font-weight: 500; }
+.cal-progress { font-size: 12px; font-weight: 700; color: var(--green); background: rgba(52,199,89,.1); border-radius: 980px; padding: 2px 8px; }
+.cal-task-list { display: flex; flex-direction: column; }
+.cal-task-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); transition: background .12s; }
+.cal-task-row:last-child { border-bottom: none; }
+.cal-task-row:hover { background: var(--hover); }
+.cal-task-row.status-done { opacity: .55; }
+.cal-task-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); background: transparent; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; transition: all .15s; margin-top: 1px; }
+.cal-task-check.done { background: var(--green); border-color: var(--green); }
+.cal-task-check:hover { border-color: var(--accent); }
+.cal-task-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cal-task-title { font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.35; }
+.cal-task-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.cal-task-time { font-size: 11px; color: var(--text3); }
 
 /* ── CRM ── */
 .crm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
