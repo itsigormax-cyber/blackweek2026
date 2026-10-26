@@ -89,6 +89,7 @@ const SETUP = [
   T('setup_i5','setup','2026-10-26',null,'c2','instagram','Gravar e postar Storie 1 com link do WhatsApp',null,[{label:'Roteiro Storie 1',text:'Eu sei que você esperou o ano todo por esse momento. A Black Week {{CLINICA}} já tem uma data: 09/11. Todos os nossos procedimentos estarão com condições nunca vistas na história. O seu convite está aqui na sua tela, clica e entra no grupo secreto.'}],null),
   T('setup_i6','setup','2026-11-30',null,'c2','instagram','Gravar e postar vídeo do feed',null,[{label:'Roteiro vídeo feed',text:'Eu sei que você esperou o ano todo por esse momento. A Black Week {{CLINICA}} já tem uma data: 09/11. Todos os nossos procedimentos estarão com condições nunca vistas na história. O seu convite está te esperando na nossa bio, clica e entra no grupo secreto.'}],null),
   T('setup_i7','setup','2026-10-26',null,'c2','instagram','Postar arte estática da Black no feed',null,null,null),
+  T('setup_g9','setup','2026-10-30',null,'c1','group','Enviar boas-vindas e link de convite no grupo',null,[{label:'Mensagem de boas-vindas + link',text:'Boa tarde, maravilhosassss 😍\n\nEste será um dos grupos em que vai rolar nossa Black Week agora em novembro e será a maior da história!!!\n\nSintam-se à vontade para convidar as amigas, vou deixar o convite pra vocês aqui 🥰 @all\n\n[cole o link de convite do grupo]'}],null),
 ]
 
 // ─── LISTA DE PACIENTES – 27/10 ───────────────────────────────────────────────
