@@ -3,7 +3,7 @@
 export const PHASES = [
   { id: 'pre',        label: 'Pré-campanha',     icon: '📋', dates: 'Até 23/10' },
   { id: 'setup',      label: 'Setup',            icon: '⚙️', dates: '22/10' },
-  { id: 'patients',   label: 'Lista de Pacientes',icon: '📩', dates: '27/10' },
+  { id: 'patients',   label: 'Lista de Pacientes',icon: '📩', dates: '03–04/11' },
   { id: 'week_before',label: 'Semana Antes',     icon: '📣', dates: '02/11' },
   { id: 'countdown',  label: 'Contagem',         icon: '⏱️', dates: '04–08/11' },
   { id: 'training',   label: 'Treino',           icon: '🏋️', dates: '06/11' },
@@ -94,8 +94,8 @@ const SETUP = [
 
 // ─── LISTA DE PACIENTES – 27/10 ───────────────────────────────────────────────
 const PATIENTS = [
-  T('pat_01','patients','2026-10-27',null,'c1','private','Enviar mensagem para toda a lista de pacientes',null,[{label:'Mensagem para pacientes',text:'[Nome], eu sei que você esperou o ano todo por esse momento 🫣\n\nTodos os procedimentos com condições nunca vistas antes em {{CIDADE}} na Black Week {{CLINICA}}\n\nSe quer garantir sua vaga, manda "Eu quero" que te mando o convite do nosso grupo secreto 🤭'}],null),
-  T('pat_02','patients','2026-10-28',null,'c1','private','Follow-up: quem recebeu link e não entrou','Enviar no dia seguinte para quem recebeu o link mas não entrou.',[{label:'Follow-up',text:'[Nome], o link do grupo secreto da Black deu certinho? Se deu algum erro é porque já encheu'}],null),
+  T('pat_01','patients','2026-11-03',null,'c1','private','Enviar mensagem para toda a lista de pacientes',null,[{label:'Mensagem para pacientes',text:'[Nome], eu sei que você esperou o ano todo por esse momento 🫣\n\nTodos os procedimentos com condições nunca vistas antes em {{CIDADE}} na Black Week {{CLINICA}}\n\nSe quer garantir sua vaga, manda "Eu quero" que te mando o convite do nosso grupo secreto 🤭'}],null),
+  T('pat_02','patients','2026-11-04',null,'c1','private','Follow-up: quem recebeu link e não entrou','Enviar no dia seguinte para quem recebeu o link mas não entrou.',[{label:'Follow-up',text:'[Nome], o link do grupo secreto da Black deu certinho? Se deu algum erro é porque já encheu'}],null),
 ]
 
 export const ATTENDANCE_SCRIPT = [
