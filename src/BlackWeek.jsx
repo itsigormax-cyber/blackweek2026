@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import sparkLogo from './assets/logo.webp'
+import MindMapTab from './MindMap.jsx'
 import {
   ALL_TASKS, PHASES, getTasksByDate, getTasksByPhase,
   applyVars, DEFAULT_CONFIG, getDayProcedures,
@@ -1062,6 +1063,7 @@ export default function BlackWeek() {
   const [crm, setCrm] = useState([])
   const [audit, setAudit] = useState([])
   const [users, setUsers] = useState([])
+  const [mindmap, setMindmap] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null)
   const [theme, setTheme] = useState(() => {
@@ -1132,6 +1134,7 @@ export default function BlackWeek() {
           setCrm(s.crm || [])
           setAudit(s.audit || [])
           setUsers(s.users || [])
+          if (s.mindmap) setMindmap(s.mindmap)
         }
       } catch (e) { console.error('[bw] load error', e) }
       setSyncing(false)
@@ -1144,10 +1147,10 @@ export default function BlackWeek() {
       if (!currentUser || !pendingSave.current || document.visibilityState !== 'hidden') return
       if (import.meta.env.DEV && currentUser.token === 'dev-token') return
       clearTimeout(saveTimer.current)
-      const { ts, cfg, c, a } = pendingSave.current
+      const { ts, cfg, c, a, mm } = pendingSave.current
       navigator.sendBeacon('/api/bw', new Blob([JSON.stringify({
         action: 'save', session_token: currentUser.token,
-        state: { taskStates: ts, config: cfg, crm: c, audit: a },
+        state: { taskStates: ts, config: cfg, crm: c, audit: a, mindmap: mm },
       })], { type: 'application/json' }))
       pendingSave.current = null
     }
@@ -1155,8 +1158,8 @@ export default function BlackWeek() {
     return () => document.removeEventListener('visibilitychange', flush)
   }, [currentUser])
 
-  const scheduleSave = useCallback((ts, cfg, c, a) => {
-    pendingSave.current = { ts, cfg, c, a }
+  const scheduleSave = useCallback((ts, cfg, c, a, mm) => {
+    pendingSave.current = { ts, cfg, c, a, mm }
     clearTimeout(saveTimer.current)
     setSaveStatus('saving')
     saveTimer.current = setTimeout(async () => {
@@ -1167,7 +1170,7 @@ export default function BlackWeek() {
         const r = await fetch('/api/bw', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'save', session_token: currentUser.token, state: { taskStates: ts, config: cfg, crm: c, audit: a } }),
+          body: JSON.stringify({ action: 'save', session_token: currentUser.token, state: { taskStates: ts, config: cfg, crm: c, audit: a, mindmap: mm } }),
         })
         if (!r.ok) throw new Error('HTTP ' + r.status)
         setSaveStatus('saved')
@@ -1199,7 +1202,7 @@ export default function BlackWeek() {
     }]
     setTaskStates(newStates)
     setAudit(newAudit)
-    scheduleSave(newStates, config, crm, newAudit)
+    scheduleSave(newStates, config, crm, newAudit, mindmap)
   }
 
   const handleCopy = (taskId, label) => {
@@ -1212,17 +1215,22 @@ export default function BlackWeek() {
       detail: `${label} (tarefa: "${task?.title || taskId}")`,
     }]
     setAudit(newAudit)
-    scheduleSave(taskStates, config, crm, newAudit)
+    scheduleSave(taskStates, config, crm, newAudit, mindmap)
   }
 
   const handleConfigChange = (newConfig) => {
     setConfig(newConfig)
-    scheduleSave(taskStates, newConfig, crm, audit)
+    scheduleSave(taskStates, newConfig, crm, audit, mindmap)
   }
 
   const handleCrmChange = (newCrm) => {
     setCrm(newCrm)
-    scheduleSave(taskStates, config, newCrm, audit)
+    scheduleSave(taskStates, config, newCrm, audit, mindmap)
+  }
+
+  const handleMindmapChange = (newMindmap) => {
+    setMindmap(newMindmap)
+    scheduleSave(taskStates, config, crm, audit, newMindmap)
   }
 
   const handleUserAction = async (action, data) => {
@@ -1268,6 +1276,7 @@ export default function BlackWeek() {
     setCrm([])
     setAudit([])
     setUsers([])
+    setMindmap(null)
   }
 
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />
@@ -1277,6 +1286,7 @@ export default function BlackWeek() {
     { id: 'calendar', label: '🗓️ Calendário', show: true },
     { id: 'playbook', label: '📋 Playbook',   show: true },
     { id: 'crm',      label: '👥 CRM',        show: true },
+    { id: 'mindmap',  label: '🗺️ Processo',   show: true },
     { id: 'setup',    label: '⚙️ Config',     show: true },
     { id: 'audit',    label: '🔍 Auditoria',  show: currentUser.role === 'owner' },
   ]
@@ -1285,7 +1295,7 @@ export default function BlackWeek() {
   const totalVisible = ALL_TASKS.filter(t => canSeeTask(t, currentUser.role)).length
 
   return (
-    <div className="bw-app" data-theme={theme}>
+    <div className={`bw-app${activeTab === 'mindmap' ? ' mm-mode' : ''}`} data-theme={theme}>
       <header className="bw-header">
         <div className="bw-header-left">
           <img src={sparkLogo} alt="Spark" className="bw-logo-img" />
@@ -1312,7 +1322,7 @@ export default function BlackWeek() {
         ))}
       </nav>
 
-      <main className="bw-main">
+      <main className={`bw-main${activeTab === 'mindmap' ? ' mm-active' : ''}`}>
         {activeTab === 'today' && (
           <TodayTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
         )}
@@ -1325,6 +1335,9 @@ export default function BlackWeek() {
         {activeTab === 'crm' && <CRMTab crm={crm} onCrmChange={handleCrmChange} />}
         {activeTab === 'setup' && (
           <SetupTab config={config} onConfigChange={handleConfigChange} currentUser={currentUser} users={users} onUserAction={handleUserAction} />
+        )}
+        {activeTab === 'mindmap' && (
+          <MindMapTab mindmap={mindmap} onMindmapChange={handleMindmapChange} />
         )}
         {activeTab === 'audit' && currentUser.role === 'owner' && <AuditTab audit={audit} />}
       </main>
@@ -2060,4 +2073,110 @@ select option { background: var(--raised); color: var(--text); }
   .proc-name { min-width: 80px; }
   .proc-price, .proc-vagas, .proc-install { min-width: 48px; }
 }
+
+/* ── MindMap tab ── */
+.bw-app.mm-mode { height: 100dvh; overflow: hidden; }
+.bw-main.mm-active { padding: 0; max-width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.mm-outer {
+  flex: 1; min-height: 0;
+  position: relative; overflow: hidden;
+  cursor: grab; touch-action: none;
+  background: var(--base);
+}
+.mm-outer:active { cursor: grabbing; }
+
+.mm-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, var(--text3) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.25;
+}
+
+.mm-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--raised);
+  border: 2px solid color-mix(in srgb, var(--nc, #ccc) 50%, transparent);
+  border-radius: 10px;
+  padding: 7px 13px;
+  min-width: 80px; max-width: 170px;
+  text-align: center;
+  cursor: grab; user-select: none;
+  font-size: 12.5px; font-weight: 600; line-height: 1.35;
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  transition: border-color .12s, box-shadow .12s;
+  white-space: pre-wrap; word-break: break-word;
+  z-index: 1;
+}
+.mm-node.mm-root {
+  border-radius: 50px;
+  background: var(--nc, var(--accent));
+  color: #fff; border: none;
+  padding: 11px 22px; font-size: 14px; font-weight: 700;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--nc, var(--accent)) 45%, transparent);
+  z-index: 2;
+}
+.mm-node.mm-sel {
+  border-color: var(--nc, var(--accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nc, var(--accent)) 20%, transparent), 0 2px 8px rgba(0,0,0,.1);
+  z-index: 10;
+}
+.mm-node.mm-hov {
+  border-color: color-mix(in srgb, var(--nc, var(--accent)) 80%, transparent);
+  z-index: 5;
+}
+.mm-label { pointer-events: none; }
+.mm-ta {
+  width: 130px;
+  font: 600 12.5px inherit;
+  color: var(--text);
+  background: transparent;
+  border: none; outline: none;
+  text-align: center; resize: none; padding: 0;
+  line-height: 1.35;
+}
+.mm-acts {
+  position: absolute; bottom: -30px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 3px; align-items: center;
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 8px; padding: 3px 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  z-index: 20; white-space: nowrap;
+}
+.mm-act {
+  width: 22px; height: 22px; border: none; background: transparent;
+  cursor: pointer; font-size: 15px; font-weight: 700; line-height: 1;
+  color: var(--accent); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  transition: background .1s;
+}
+.mm-act:hover { background: var(--hover); }
+.mm-act-del { color: var(--red); }
+.mm-controls {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center;
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px 8px; gap: 2px;
+  box-shadow: var(--shadow); z-index: 100;
+}
+.mm-ctrl-btn {
+  width: 28px; height: 28px; border: none; background: transparent;
+  cursor: pointer; font-size: 16px; font-weight: 700; color: var(--text2);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  transition: background .1s, color .1s;
+}
+.mm-ctrl-btn:hover { background: var(--hover); color: var(--text); }
+.mm-ctrl-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+.mm-tip {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: var(--text3);
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 10px;
+  pointer-events: none; white-space: nowrap; opacity: 0.75;
+  z-index: 50;
+}
+@media (max-width: 600px) { .mm-tip { display: none; } }
 `
