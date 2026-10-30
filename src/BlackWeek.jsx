@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import sparkLogo from './assets/logo.webp'
 import MindMapTab from './MindMap.jsx'
 import {
@@ -17,6 +17,30 @@ function shuffleArray(arr) {
 }
 
 const CLINIC_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/
+
+// ─── Date calibration constants ───────────────────────────────────────────────
+const REFERENCE_BLACK = '2026-11-09'   // Black Day 1 (fixed for 2026)
+const REFERENCE_START = '2026-10-22'   // Earliest task in the original timeline
+const CAMPAIGN_PHASES_FIXED = new Set(['day1','day2','day3','day4','day5','closing','post'])
+
+// Proportionally remaps a pre-campaign date to fit between firstAccessDate and Black Day 1
+function adjustTaskDate(iso, config) {
+  if (!iso || !config?.firstAccessDate) return iso
+  const ms = s => new Date(s + 'T12:00:00').getTime()
+  const blackMs = ms(REFERENCE_BLACK)
+  const refMs = ms(REFERENCE_START)
+  const accessMs = ms(config.firstAccessDate)
+  const taskMs = ms(iso)
+  // Campaign dates and tasks on/after blackStart stay unchanged
+  if (taskMs >= blackMs || accessMs <= refMs) return iso
+  const refRange = Math.round((blackMs - refMs) / 86400000)          // 18 days
+  const actualRange = Math.max(1, Math.round((blackMs - accessMs) / 86400000))
+  const daysFromBlack = Math.round((blackMs - taskMs) / 86400000)
+  const adjustedDays = Math.round(daysFromBlack * actualRange / refRange)
+  const resultMs = blackMs - adjustedDays * 86400000
+  const finalMs = resultMs < accessMs ? accessMs : resultMs
+  return new Date(finalMs).toISOString().slice(0, 10)
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -276,25 +300,30 @@ function roleLabel(r) {
 }
 
 // ─── TodayTab ─────────────────────────────────────────────────────────────────
-function getNextTaskDate(fromDate) {
-  const allDates = [...new Set(ALL_TASKS.map(t => t.date).filter(Boolean))].sort()
+function getNextTaskDate(fromDate, tasks = ALL_TASKS) {
+  const allDates = [...new Set(tasks.map(t => t.date).filter(Boolean))].sort()
   return allDates.find(d => d >= fromDate) || null
 }
 
-function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy }) {
+function tasksByDate(tasks, date) {
+  return tasks.filter(t => t.date === date)
+    .sort((a, b) => (a.time || '23:59').localeCompare(b.time || '23:59'))
+}
+
+function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tasks }) {
   const today = getTodayDate()
   const now = new Date()
 
-  const todayTasks = getTasksByDate(today).filter(t => canSeeTask(t, currentUser.role))
+  const todayTasks = tasksByDate(tasks, today).filter(t => canSeeTask(t, currentUser.role))
   const hasTodayTasks = todayTasks.length > 0
 
-  const nextDate = getNextTaskDate(hasTodayTasks ? today + 'Z' : today) // if today has tasks, next = future
+  const nextDate = getNextTaskDate(hasTodayTasks ? today + 'Z' : today, tasks)
   const futureDateForCountdown = hasTodayTasks
-    ? getNextTaskDate(today.slice(0, 8) + String(parseInt(today.slice(8)) + 1).padStart(2, '0'))
+    ? getNextTaskDate(today.slice(0, 8) + String(parseInt(today.slice(8)) + 1).padStart(2, '0'), tasks)
     : nextDate
 
   const nextTasks = (!hasTodayTasks && futureDateForCountdown)
-    ? getTasksByDate(futureDateForCountdown).filter(t => canSeeTask(t, currentUser.role))
+    ? tasksByDate(tasks, futureDateForCountdown).filter(t => canSeeTask(t, currentUser.role))
     : []
 
   let daysLeft = 0, nextDateFmt = '', phaseInfo = null
@@ -387,7 +416,7 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy }) {
 }
 
 // ─── PlaybookTab ──────────────────────────────────────────────────────────────
-function PlaybookTab({ taskStates, config, currentUser, onStatusChange, onCopy }) {
+function PlaybookTab({ taskStates, config, currentUser, onStatusChange, onCopy, tasks: allTasks }) {
   const [activePhase, setActivePhase] = useState(PHASES[0].id)
   const phaseNavRef = useRef(null)
   const now = new Date()
@@ -398,10 +427,10 @@ function PlaybookTab({ taskStates, config, currentUser, onStatusChange, onCopy }
     if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }, [activePhase])
 
-  const tasks = getTasksByPhase(activePhase).filter(t => canSeeTask(t, currentUser.role))
+  const tasks = allTasks.filter(t => t.phase === activePhase && canSeeTask(t, currentUser.role))
 
   const phaseProgress = (phaseId) => {
-    const all = getTasksByPhase(phaseId).filter(t => canSeeTask(t, currentUser.role))
+    const all = allTasks.filter(t => t.phase === phaseId && canSeeTask(t, currentUser.role))
     if (all.length === 0) return null
     const done = all.filter(t => taskStates[t.id]?.status === 'done').length
     return { done, total: all.length }
@@ -956,7 +985,7 @@ function LoginScreen({ onLogin }) {
 }
 
 // ─── CalendarTab ─────────────────────────────────────────────────────────────
-function CalendarTab({ taskStates, config, currentUser, onStatusChange, onCopy }) {
+function CalendarTab({ taskStates, config, currentUser, onStatusChange, onCopy, tasks }) {
   const now = new Date()
   const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
   const DAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
@@ -969,7 +998,7 @@ function CalendarTab({ taskStates, config, currentUser, onStatusChange, onCopy }
 
   // Group all tasks by date
   const byDate = {}
-  ALL_TASKS.filter(t => t.date && canSeeTask(t, currentUser.role)).forEach(t => {
+  tasks.filter(t => t.date && canSeeTask(t, currentUser.role)).forEach(t => {
     if (!byDate[t.date]) byDate[t.date] = []
     byDate[t.date].push(t)
   })
@@ -1078,6 +1107,16 @@ export default function BlackWeek() {
   const inactivityTimer = useRef(null)
   const INACTIVITY_MS = 4 * 60 * 60 * 1000
 
+  // Tasks with dates proportionally remapped to fit from firstAccessDate → Black Day 1
+  const adjustedTasks = useMemo(() => {
+    if (!config.firstAccessDate) return ALL_TASKS
+    return ALL_TASKS.map(t => {
+      if (CAMPAIGN_PHASES_FIXED.has(t.phase)) return t
+      const nd = adjustTaskDate(t.date, config)
+      return nd === t.date ? t : { ...t, date: nd }
+    })
+  }, [config.firstAccessDate, config.blackStart]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light'
     setTheme(next)
@@ -1135,6 +1174,25 @@ export default function BlackWeek() {
           setAudit(s.audit || [])
           setUsers(s.users || [])
           if (s.mindmap) setMindmap(s.mindmap)
+        } else {
+          // PRIMEIRO ACESSO — calibrar datas proporcionalmente até 9/11
+          const firstConfig = {
+            ...DEFAULT_CONFIG,
+            firstAccessDate: getTodayDate(),
+            blackStart: REFERENCE_BLACK,
+          }
+          setConfig(firstConfig)
+          if (!(import.meta.env.DEV && currentUser.token === 'dev-token')) {
+            fetch('/api/bw', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'save',
+                session_token: currentUser.token,
+                state: { taskStates: {}, config: firstConfig, crm: [], audit: [], mindmap: null },
+              }),
+            }).catch(e => console.error('[bw] first-access save:', e))
+          }
         }
       } catch (e) { console.error('[bw] load error', e) }
       setSyncing(false)
@@ -1292,7 +1350,7 @@ export default function BlackWeek() {
   ]
 
   const doneTasks = Object.values(taskStates).filter(s => s?.status === 'done').length
-  const totalVisible = ALL_TASKS.filter(t => canSeeTask(t, currentUser.role)).length
+  const totalVisible = adjustedTasks.filter(t => canSeeTask(t, currentUser.role)).length
 
   return (
     <div className={`bw-app${activeTab === 'mindmap' ? ' mm-mode' : ''}`} data-theme={theme}>
@@ -1324,13 +1382,13 @@ export default function BlackWeek() {
 
       <main className={`bw-main${activeTab === 'mindmap' ? ' mm-active' : ''}`}>
         {activeTab === 'today' && (
-          <TodayTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
+          <TodayTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={adjustedTasks} />
         )}
         {activeTab === 'calendar' && (
-          <CalendarTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
+          <CalendarTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={adjustedTasks} />
         )}
         {activeTab === 'playbook' && (
-          <PlaybookTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} />
+          <PlaybookTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={adjustedTasks} />
         )}
         {activeTab === 'crm' && <CRMTab crm={crm} onCrmChange={handleCrmChange} />}
         {activeTab === 'setup' && (
