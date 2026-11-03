@@ -1443,6 +1443,7 @@ const CLINIC_NAMES = {
   'demo': 'Clínica Demo',
   'botopremium-botafogo': 'BotoPremium Botafogo',
   'botobarra': 'BotoPremium Barra Olímpica',
+  'botoclinic-ipatinga': 'BotoClinic Ipatinga',
 }
 
 function AdminPanel({ onLogout, theme, toggleTheme }) {
