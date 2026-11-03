@@ -317,6 +317,15 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
   const todayTasks = tasksByDate(tasks, today).filter(t => canSeeTask(t, currentUser.role))
   const hasTodayTasks = todayTasks.length > 0
 
+  // Tarefas atrasadas: anteriores a hoje, não concluídas e não em andamento
+  const overdueTasks = tasks.filter(t => {
+    if (!t.date || t.date >= today) return false
+    if (!canSeeTask(t, currentUser.role)) return false
+    const st = taskStates[t.id]?.status
+    return st !== 'done' && st !== 'in_progress'
+  }).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+  const hasOverdue = overdueTasks.length > 0
+
   const nextDate = getNextTaskDate(hasTodayTasks ? today + 'Z' : today, tasks)
   const futureDateForCountdown = hasTodayTasks
     ? getNextTaskDate(today.slice(0, 8) + String(parseInt(today.slice(8)) + 1).padStart(2, '0'), tasks)
@@ -338,7 +347,7 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
   const pct = hasTodayTasks ? Math.round((done / todayTasks.length) * 100) : 0
   const todayFmt = new Date(today + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  if (!hasTodayTasks && !futureDateForCountdown) {
+  if (!hasTodayTasks && !hasOverdue && !futureDateForCountdown) {
     return (
       <div className="empty-state">
         <div className="empty-icon">🏆</div>
@@ -358,7 +367,7 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
   return (
     <div className="tab-content">
       {/* Status card — sempre visível */}
-      <div className={`today-status-card ${hasTodayTasks ? 'today-status-active' : 'today-status-waiting'}`}>
+      <div className={`today-status-card ${hasTodayTasks ? 'today-status-active' : hasOverdue ? 'today-status-overdue' : 'today-status-waiting'}`}>
         {hasTodayTasks ? (
           <>
             <div className="today-date-label">{todayFmt}</div>
@@ -366,6 +375,11 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
               <div className="today-progress-bar"><div className="today-progress-fill" style={{ width: `${pct}%` }} /></div>
               <span className="today-progress-label">{done}/{todayTasks.length} tarefas</span>
             </div>
+          </>
+        ) : hasOverdue ? (
+          <>
+            <div className="today-date-label">{todayFmt}</div>
+            <div className="overdue-summary-label">⚠️ {overdueTasks.length} {overdueTasks.length === 1 ? 'tarefa atrasada' : 'tarefas atrasadas'}</div>
           </>
         ) : (
           <>
@@ -380,22 +394,41 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
         )}
       </div>
 
+      {/* Tarefas atrasadas */}
+      {hasOverdue && (
+        <>
+          <div className="overdue-section-label">⚠️ Atrasadas — faça agora</div>
+          {overdueTasks.map(t => {
+            const status = computeStatus(t.id, t.date, t.time, taskStates, now)
+            return (
+              <TaskCard key={t.id} task={t} status={status} config={config}
+                onStatusChange={onStatusChange} onCopy={(label) => onCopy(t.id, label)} />
+            )
+          })}
+        </>
+      )}
+
       {/* Tarefas de hoje */}
-      {hasTodayTasks && Object.entries(grouped)
-        .sort(([a], [b]) => a === '—' ? 1 : b === '—' ? -1 : a.localeCompare(b))
-        .map(([hour, htasks]) => (
-          <div key={hour} className="hour-group">
-            <div className="hour-label">{hour !== '—' ? `⏰ ${hour}` : '📋 Sem horário fixo'}</div>
-            {htasks.map(t => {
-              const status = computeStatus(t.id, t.date, t.time, taskStates, now)
-              return (
-                <TaskCard key={t.id} task={t} status={status} config={config}
-                  onStatusChange={onStatusChange} onCopy={(label) => onCopy(t.id, label)} />
-              )
-            })}
-          </div>
-        ))
-      }
+      {hasTodayTasks && (
+        <>
+          {hasOverdue && <div className="today-section-label">📅 Hoje</div>}
+          {Object.entries(grouped)
+            .sort(([a], [b]) => a === '—' ? 1 : b === '—' ? -1 : a.localeCompare(b))
+            .map(([hour, htasks]) => (
+              <div key={hour} className="hour-group">
+                <div className="hour-label">{hour !== '—' ? `⏰ ${hour}` : '📋 Sem horário fixo'}</div>
+                {htasks.map(t => {
+                  const status = computeStatus(t.id, t.date, t.time, taskStates, now)
+                  return (
+                    <TaskCard key={t.id} task={t} status={status} config={config}
+                      onStatusChange={onStatusChange} onCopy={(label) => onCopy(t.id, label)} />
+                  )
+                })}
+              </div>
+            ))
+          }
+        </>
+      )}
 
       {/* Tarefas futuras — sempre visíveis, dimmed mas clicáveis */}
       {!hasTodayTasks && nextTasks.length > 0 && (
@@ -1592,6 +1625,21 @@ body {
 .future-tasks-label {
   font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: var(--text3); padding: 8px 0 4px;
+}
+.overdue-section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #f97316; padding: 12px 0 4px;
+}
+.today-section-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text3); padding: 12px 0 4px;
+}
+.today-status-overdue {
+  background: color-mix(in srgb, #f97316 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, #f97316 35%, transparent);
+}
+.overdue-summary-label {
+  font-size: 15px; font-weight: 600; color: #f97316; margin-top: 4px;
 }
 
 /* ── Hour groups ── */
