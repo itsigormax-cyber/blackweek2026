@@ -1371,6 +1371,7 @@ export default function BlackWeek() {
   }
 
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />
+  if (currentUser.clinic_id === 'spac-admin') return <AdminPanel onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
 
   const TABS = [
     { id: 'today',    label: '📅 Hoje',       show: true },
@@ -1433,6 +1434,65 @@ export default function BlackWeek() {
         {activeTab === 'audit' && currentUser.role === 'owner' && <AuditTab audit={audit} />}
       </main>
 
+      <style>{CSS}</style>
+    </div>
+  )
+}
+
+const CLINIC_NAMES = {
+  'demo': 'Clínica Demo',
+  'botopremium-botafogo': 'BotoPremium Botafogo',
+  'botobarra': 'BotoPremium Barra Olímpica',
+}
+
+function AdminPanel({ onLogout, theme, toggleTheme }) {
+  const [clinics, setClinics] = React.useState(null)
+  const [error, setError] = React.useState(null)
+
+  React.useEffect(() => {
+    const token = sessionStorage.getItem('bw_token')
+    fetch('/api/bw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: 'list_clinics' }),
+    })
+      .then(r => r.json())
+      .then(d => { if (d.ok) setClinics(d.clinics); else setError(d.error || 'Erro') })
+      .catch(() => setError('Falha de rede'))
+  }, [])
+
+  const base = window.location.origin + window.location.pathname
+
+  return (
+    <div className="admin-panel" data-theme={theme}>
+      <div className="admin-header">
+        <img src={sparkLogo} alt="Spark" />
+        <span className="admin-title">Painel SPAC</span>
+        <span className="admin-badge">Admin</span>
+        <button className="btn-ghost-sm theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}>
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+        <button className="btn-ghost-sm" onClick={onLogout}>Sair</button>
+      </div>
+
+      <div className="admin-clinic-list">
+        {error && <div className="admin-empty">Erro: {error}</div>}
+        {!error && clinics === null && <div className="admin-loading">Carregando clínicas…</div>}
+        {!error && clinics !== null && clinics.length === 0 && (
+          <div className="admin-empty">Nenhuma clínica encontrada.</div>
+        )}
+        {!error && clinics !== null && clinics.map(id => (
+          <div key={id} className="admin-clinic-card">
+            <div>
+              <div className="admin-clinic-name">{CLINIC_NAMES[id] || id}</div>
+              <div className="admin-clinic-id">?c={id}</div>
+            </div>
+            <a className="admin-btn-open" href={`${base}?c=${id}`} target="_blank" rel="noreferrer">
+              Abrir →
+            </a>
+          </div>
+        ))}
+      </div>
       <style>{CSS}</style>
     </div>
   )
@@ -2285,4 +2345,92 @@ select option { background: var(--raised); color: var(--text); }
   z-index: 50;
 }
 @media (max-width: 600px) { .mm-tip { display: none; } }
+
+/* ── Admin Panel ── */
+.admin-panel {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 16px 60px;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 36px;
+  width: 100%;
+  max-width: 640px;
+}
+.admin-header img { height: 28px; }
+.admin-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text1);
+  flex: 1;
+}
+.admin-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 100px;
+  padding: 3px 10px;
+}
+.admin-clinic-list {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-clinic-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.admin-clinic-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text1);
+  flex: 1;
+}
+.admin-clinic-id {
+  font-size: 12px;
+  color: var(--text3);
+  font-family: monospace;
+}
+.admin-btn-open {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.admin-btn-open:hover { opacity: .88; }
+.admin-empty {
+  color: var(--text3);
+  font-size: 15px;
+  margin-top: 40px;
+  text-align: center;
+}
+.admin-loading {
+  color: var(--text3);
+  font-size: 15px;
+  margin-top: 40px;
+}
 `

@@ -255,5 +255,21 @@ export default async function handler(req, res) {
     }
   }
 
+  if (action === 'list_clinics') {
+    if (clinic_id !== 'spac-admin') return res.status(403).json({ error: 'Acesso negado' })
+    try {
+      const { blobs } = await list({ prefix: 'bw/' })
+      const clinicIds = [...new Set(
+        blobs
+          .map(b => b.pathname.match(/^bw\/([^/]+)\/state\.json$/)?.[1])
+          .filter(Boolean)
+      )].filter(id => id !== 'spac-admin')
+      return res.status(200).json({ ok: true, clinics: clinicIds })
+    } catch (err) {
+      console.error('[bw] list_clinics error:', err.message)
+      return res.status(500).json({ error: 'Erro interno' })
+    }
+  }
+
   return res.status(400).json({ error: 'Ação desconhecida' })
 }
