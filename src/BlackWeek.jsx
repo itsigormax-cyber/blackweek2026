@@ -1371,7 +1371,7 @@ export default function BlackWeek() {
   }
 
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />
-  if (currentUser.clinic_id === 'spac-admin') return <AdminPanel onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
+  if (currentUser.clinic_id === 'spac-admin') return <AdminPanel currentUser={currentUser} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
 
   const TABS = [
     { id: 'today',    label: '📅 Hoje',       show: true },
@@ -1446,16 +1446,15 @@ const CLINIC_NAMES = {
   'botoclinic-ipatinga': 'BotoClinic Ipatinga',
 }
 
-function AdminPanel({ onLogout, theme, toggleTheme }) {
+function AdminPanel({ currentUser, onLogout, theme, toggleTheme }) {
   const [clinics, setClinics] = React.useState(null)
   const [error, setError] = React.useState(null)
 
   React.useEffect(() => {
-    const token = sessionStorage.getItem('bw_token')
     fetch('/api/bw', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action: 'list_clinics' }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list_clinics', session_token: currentUser.token }),
     })
       .then(r => r.json())
       .then(d => { if (d.ok) setClinics(d.clinics); else setError(d.error || 'Erro') })
