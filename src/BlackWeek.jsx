@@ -1447,10 +1447,10 @@ const CLINIC_NAMES = {
 }
 
 function AdminPanel({ currentUser, onLogout, theme, toggleTheme }) {
-  const [clinics, setClinics] = React.useState(null)
-  const [error, setError] = React.useState(null)
+  const [clinics, setClinics] = useState(null)
+  const [error, setError] = useState(null)
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch('/api/bw', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
