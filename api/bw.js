@@ -255,6 +255,14 @@ export default async function handler(req, res) {
     }
   }
 
+  if (action === 'admin_access') {
+    if (clinic_id !== 'spac-admin') return res.status(403).json({ error: 'Acesso negado' })
+    const { target_clinic_id } = body
+    if (!target_clinic_id || !isValidClinicId(target_clinic_id)) return res.status(400).json({ error: 'ID inválido' })
+    const accessToken = signToken({ clinic_id: target_clinic_id, username: 'spac-admin', role: 'owner', name: 'SPAC Admin', exp: Date.now() + TOKEN_TTL_MS })
+    return res.status(200).json({ ok: true, token: accessToken })
+  }
+
   if (action === 'list_clinics') {
     if (clinic_id !== 'spac-admin') return res.status(403).json({ error: 'Acesso negado' })
     try {

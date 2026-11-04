@@ -1189,6 +1189,18 @@ export default function BlackWeek() {
     }
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-login via admin panel token (?at=)
+  useEffect(() => {
+    if (currentUser) return
+    const params = new URLSearchParams(window.location.search)
+    const at = params.get('at')
+    const rawId = params.get('c') || ''
+    if (!at || !rawId) return
+    const cid = /^[a-zA-Z0-9_-]{1,64}$/.test(rawId) ? rawId : null
+    if (!cid) return
+    setCurrentUser({ clinic_id: cid, token: at, username: 'SPAC Admin', role: 'owner', name: 'SPAC Admin' })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!currentUser) return
     const load = async () => {
@@ -1449,6 +1461,7 @@ const CLINIC_NAMES = {
 function AdminPanel({ currentUser, onLogout, theme, toggleTheme }) {
   const [clinics, setClinics] = useState(null)
   const [error, setError] = useState(null)
+  const [opening, setOpening] = useState(null)
 
   useEffect(() => {
     fetch('/api/bw', {
@@ -1462,6 +1475,24 @@ function AdminPanel({ currentUser, onLogout, theme, toggleTheme }) {
   }, [])
 
   const base = window.location.origin + window.location.pathname
+
+  const handleOpen = async (targetId) => {
+    setOpening(targetId)
+    try {
+      const res = await fetch('/api/bw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_access', session_token: currentUser.token, target_clinic_id: targetId }),
+      })
+      const d = await res.json()
+      if (d.ok) {
+        window.open(`${base}?c=${targetId}&at=${encodeURIComponent(d.token)}`, '_blank')
+      } else {
+        alert('Erro: ' + (d.error || 'Falha'))
+      }
+    } catch { alert('Falha de rede') }
+    setOpening(null)
+  }
 
   return (
     <div className="admin-panel" data-theme={theme}>
@@ -1487,9 +1518,9 @@ function AdminPanel({ currentUser, onLogout, theme, toggleTheme }) {
               <div className="admin-clinic-name">{CLINIC_NAMES[id] || id}</div>
               <div className="admin-clinic-id">?c={id}</div>
             </div>
-            <a className="admin-btn-open" href={`${base}?c=${id}`} target="_blank" rel="noreferrer">
-              Abrir →
-            </a>
+            <button className="admin-btn-open" onClick={() => handleOpen(id)} disabled={opening === id}>
+              {opening === id ? '…' : 'Abrir →'}
+            </button>
           </div>
         ))}
       </div>
