@@ -254,7 +254,7 @@ function generateCampaignDay({ dayIndex, date }) {
       text: '',
       poll: isMultiDay
         ? { question: 'Qual vai garantir hoje?', options: null, allowMultiple: true, type: 'multi' }
-        : { question: '{{PROCEDIMENTO}} por apenas {{VALOR}} 🤯', options: ['QUERO 🤯🤯🤯', 'QUERO MUITO'], allowMultiple: false },
+        : { question: '{{PROCEDIMENTO}} 🤯', options: ['QUERO 🤯🤯🤯', 'QUERO MUITO'], allowMultiple: false },
     },
   ]
   tasks.push(T(`${p}_1000b`,p,date,'10:00','c2','group','Revelar oferta + fotos + enquete',null,revelationScripts,null,dayIndex))

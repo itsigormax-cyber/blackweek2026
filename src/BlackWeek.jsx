@@ -815,7 +815,7 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
                       <span className="wa-poll-title">ENQUETE</span>
                     </div>
                     <div className="wa-poll-question">
-                      {isMultiDay ? 'Qual vai garantir hoje?' : config.hidePollPrice ? `${previewProc} 🤯` : `${previewProc} por apenas ${previewVal} 🤯`}
+                      {isMultiDay ? 'Qual vai garantir hoje?' : `${previewProc} 🤯`}
                     </div>
                     <div className="wa-poll-options">
                       {isMultiDay ? (
