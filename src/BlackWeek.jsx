@@ -313,41 +313,48 @@ function tasksByDate(tasks, date) {
 function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tasks }) {
   const today = getTodayDate()
   const now = new Date()
+  const [selectedDate, setSelectedDate] = useState(today)
 
-  const todayTasks = tasksByDate(tasks, today).filter(t => canSeeTask(t, currentUser.role))
-  const hasTodayTasks = todayTasks.length > 0
+  const isToday = selectedDate === today
 
-  // Tarefas atrasadas: anteriores a hoje, não concluídas e não em andamento
-  const overdueTasks = tasks.filter(t => {
+  // Datas disponíveis no cronograma para navegação
+  const allDates = [...new Set(tasks.map(t => t.date).filter(Boolean))].sort()
+  const prevDate = allDates.filter(d => d < selectedDate).at(-1) || null
+  const nextDate = allDates.find(d => d > selectedDate) || null
+
+  const selectedTasks = tasksByDate(tasks, selectedDate).filter(t => canSeeTask(t, currentUser.role))
+  const hasSelectedTasks = selectedTasks.length > 0
+
+  // Tarefas atrasadas: só exibe na visão de hoje
+  const overdueTasks = isToday ? tasks.filter(t => {
     if (!t.date || t.date >= today) return false
     if (!canSeeTask(t, currentUser.role)) return false
     const st = taskStates[t.id]?.status
     return st !== 'done' && st !== 'in_progress'
-  }).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+  }).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''))) : []
   const hasOverdue = overdueTasks.length > 0
 
-  const nextDate = getNextTaskDate(hasTodayTasks ? today + 'Z' : today, tasks)
-  const futureDateForCountdown = hasTodayTasks
+  // Countdown: só na visão de hoje sem tarefas
+  const countdownNextDate = isToday && !hasSelectedTasks
     ? getNextTaskDate(today.slice(0, 8) + String(parseInt(today.slice(8)) + 1).padStart(2, '0'), tasks)
-    : nextDate
-
-  const nextTasks = (!hasTodayTasks && futureDateForCountdown)
-    ? tasksByDate(tasks, futureDateForCountdown).filter(t => canSeeTask(t, currentUser.role))
+    : null
+  const countdownTasks = countdownNextDate
+    ? tasksByDate(tasks, countdownNextDate).filter(t => canSeeTask(t, currentUser.role))
     : []
 
-  let daysLeft = 0, nextDateFmt = '', phaseInfo = null
-  if (!hasTodayTasks && futureDateForCountdown) {
-    daysLeft = Math.ceil((new Date(futureDateForCountdown + 'T12:00:00') - new Date(today + 'T12:00:00')) / 86400000)
-    nextDateFmt = new Date(futureDateForCountdown + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
-    const phase = nextTasks[0]?.phase
+  let daysLeft = 0, countdownDateFmt = '', phaseInfo = null
+  if (countdownNextDate) {
+    daysLeft = Math.ceil((new Date(countdownNextDate + 'T12:00:00') - new Date(today + 'T12:00:00')) / 86400000)
+    countdownDateFmt = new Date(countdownNextDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+    const phase = countdownTasks[0]?.phase
     phaseInfo = PHASES.find(p => p.id === phase)
   }
 
-  const done = hasTodayTasks ? todayTasks.filter(t => taskStates[t.id]?.status === 'done').length : 0
-  const pct = hasTodayTasks ? Math.round((done / todayTasks.length) * 100) : 0
-  const todayFmt = new Date(today + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const done = hasSelectedTasks ? selectedTasks.filter(t => taskStates[t.id]?.status === 'done').length : 0
+  const pct = hasSelectedTasks ? Math.round((done / selectedTasks.length) * 100) : 0
+  const selectedFmt = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  if (!hasTodayTasks && !hasOverdue && !futureDateForCountdown) {
+  if (isToday && !hasSelectedTasks && !hasOverdue && !countdownNextDate) {
     return (
       <div className="empty-state">
         <div className="empty-icon">🏆</div>
@@ -358,43 +365,51 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
   }
 
   const grouped = {}
-  todayTasks.forEach(t => {
+  selectedTasks.forEach(t => {
     const h = t.time ? t.time.slice(0, 5) : '—'
     if (!grouped[h]) grouped[h] = []
     grouped[h].push(t)
   })
 
+  const cardClass = hasSelectedTasks ? 'today-status-active' : hasOverdue ? 'today-status-overdue' : 'today-status-waiting'
+
   return (
     <div className="tab-content">
-      {/* Status card — sempre visível */}
-      <div className={`today-status-card ${hasTodayTasks ? 'today-status-active' : hasOverdue ? 'today-status-overdue' : 'today-status-waiting'}`}>
-        {hasTodayTasks ? (
-          <>
-            <div className="today-date-label">{todayFmt}</div>
-            <div className="today-progress">
-              <div className="today-progress-bar"><div className="today-progress-fill" style={{ width: `${pct}%` }} /></div>
-              <span className="today-progress-label">{done}/{todayTasks.length} tarefas</span>
-            </div>
-          </>
-        ) : hasOverdue ? (
-          <>
-            <div className="today-date-label">{todayFmt}</div>
-            <div className="overdue-summary-label">⚠️ {overdueTasks.length} {overdueTasks.length === 1 ? 'tarefa atrasada' : 'tarefas atrasadas'}</div>
-          </>
-        ) : (
-          <>
-            <div className="countdown-row">
-              <span className="countdown-number">{daysLeft}</span>
-              <span className="countdown-unit">{daysLeft === 1 ? 'dia' : 'dias'}</span>
-              <span className="countdown-sep">·</span>
-              <span className="countdown-phase">{phaseInfo?.icon} {nextDateFmt}</span>
-            </div>
-            <div className="countdown-label">Próxima etapa: <strong>{phaseInfo?.label}</strong></div>
-          </>
-        )}
+      {/* Status card com navegação de datas */}
+      <div className={`today-status-card ${cardClass}`}>
+        <div className="today-date-nav">
+          <button className="today-nav-btn" onClick={() => prevDate && setSelectedDate(prevDate)} disabled={!prevDate} aria-label="Dia anterior">‹</button>
+          <div className="today-date-center">
+            <div className="today-date-label">{isToday ? `Hoje — ${selectedFmt}` : selectedFmt}</div>
+            {hasSelectedTasks && (
+              <div className="today-progress">
+                <div className="today-progress-bar"><div className="today-progress-fill" style={{ width: `${pct}%` }} /></div>
+                <span className="today-progress-label">{done}/{selectedTasks.length} tarefas</span>
+              </div>
+            )}
+            {!hasSelectedTasks && hasOverdue && isToday && (
+              <div className="overdue-summary-label">⚠️ {overdueTasks.length} {overdueTasks.length === 1 ? 'tarefa atrasada' : 'tarefas atrasadas'}</div>
+            )}
+            {!hasSelectedTasks && !hasOverdue && countdownNextDate && isToday && (
+              <>
+                <div className="countdown-row">
+                  <span className="countdown-number">{daysLeft}</span>
+                  <span className="countdown-unit">{daysLeft === 1 ? 'dia' : 'dias'}</span>
+                  <span className="countdown-sep">·</span>
+                  <span className="countdown-phase">{phaseInfo?.icon} {countdownDateFmt}</span>
+                </div>
+                <div className="countdown-label">Próxima etapa: <strong>{phaseInfo?.label}</strong></div>
+              </>
+            )}
+            {!hasSelectedTasks && !isToday && (
+              <div className="today-no-tasks-label">Sem tarefas neste dia</div>
+            )}
+          </div>
+          <button className="today-nav-btn" onClick={() => nextDate && setSelectedDate(nextDate)} disabled={!nextDate} aria-label="Próximo dia">›</button>
+        </div>
       </div>
 
-      {/* Tarefas atrasadas */}
+      {/* Tarefas atrasadas — só na visão de hoje */}
       {hasOverdue && (
         <>
           <div className="overdue-section-label">⚠️ Atrasadas — faça agora</div>
@@ -408,8 +423,8 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
         </>
       )}
 
-      {/* Tarefas de hoje */}
-      {hasTodayTasks && (
+      {/* Tarefas do dia selecionado */}
+      {hasSelectedTasks && (
         <>
           {hasOverdue && <div className="today-section-label">📅 Hoje</div>}
           {Object.entries(grouped)
@@ -430,11 +445,11 @@ function TodayTab({ taskStates, config, currentUser, onStatusChange, onCopy, tas
         </>
       )}
 
-      {/* Tarefas futuras — sempre visíveis, dimmed mas clicáveis */}
-      {!hasTodayTasks && nextTasks.length > 0 && (
+      {/* Tarefas futuras — só na visão de hoje, dimmed mas clicáveis */}
+      {isToday && !hasSelectedTasks && countdownTasks.length > 0 && (
         <>
           <div className="future-tasks-label">O que vem por aí</div>
-          {nextTasks.map(t => {
+          {countdownTasks.map(t => {
             const status = computeStatus(t.id, t.date, t.time, taskStates, now)
             return (
               <TaskCard key={t.id} task={t} status={status} config={config}
@@ -1690,6 +1705,19 @@ body {
   background: linear-gradient(135deg, rgba(232,146,58,.07) 0%, rgba(232,146,58,.02) 100%);
   border: 1px solid rgba(232,146,58,.2);
 }
+.today-date-nav {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.today-date-center { flex: 1; min-width: 0; }
+.today-nav-btn {
+  flex-shrink: 0; background: none; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text2); font-size: 20px; line-height: 1; cursor: pointer;
+  padding: 4px 10px; margin-top: 4px;
+  transition: background .15s, color .15s, opacity .15s;
+}
+.today-nav-btn:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.today-nav-btn:disabled { opacity: .25; cursor: default; }
+.today-no-tasks-label { font-size: 14px; color: var(--text3); margin-top: 4px; }
 .today-date-label {
   font-size: 24px; font-weight: 700; letter-spacing: -.03em; margin-bottom: 16px;
   text-transform: capitalize; color: var(--text);
