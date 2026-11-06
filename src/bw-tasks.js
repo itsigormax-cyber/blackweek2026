@@ -118,6 +118,7 @@ const WEEK_BEFORE = [
 const COUNTDOWN = [
   T('cd_04a','countdown','2026-11-04','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥 FALTAM 5 DIAS BLACK WEEK {{CLINICA}}'}],null),
   T('cd_04b','countdown','2026-11-04',null,'c1','private','Chamar quem recebeu link e não entrou',null,[{label:'Mensagem de texto',text:'[Nome], estranho'},{label:'Áudio (grave e envie)',text:'Aqui é a [seu nome] da {{CLINICA}}, você não conseguiu sua vaga na nossa Black? Não te vi no grupo'}],null),
+  T('cd_04_blogueiras','countdown','2026-11-04',null,'owner','internal','Revisar Blogueiras','Verificar se as blogueiras postaram o story e se os links de WhatsApp estão funcionando corretamente.',null,null),
   T('cd_05a','countdown','2026-11-05','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥 FALTAM 4 DIAS BLACK WEEK {{CLINICA}}'}],null),
   T('cd_05b','countdown','2026-11-05',null,'c1','private','Chamar quem recebeu link e não entrou (dia 2)',null,[{label:'Mensagem',text:'Boa tarde, [Nome]! Tudo bem? [Nome], conseguiu entrar no grupo??'},{label:'Se não responder',text:'[mande uma figurinha]\n[depois mande um áudio pessoal]'}],null),
   T('cd_06a','countdown','2026-11-06','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥 FALTAM 3 DIAS BLACK WEEK {{CLINICA}}'}],null),
@@ -357,6 +358,11 @@ export function applyVars(text, config, dayIndex = null) {
     CONDITION:    day?.condition     || '[Preencha a condição do dia nas configurações]',
   }
   let result = text
+  // Se hidePollPrice, remove o trecho "por apenas {{VALOR}}" antes das substituições
+  if (config.hidePollPrice) {
+    result = result.replace(/\s*por apenas \{\{VALOR\}\}/gi, '')
+    result = result.replace(/\s*POR APENAS \{\{VALOR\}\}/gi, '')
+  }
   Object.entries(vars).forEach(([k, v]) => {
     result = result.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v)
   })
@@ -370,6 +376,7 @@ export const DEFAULT_CONFIG = {
   c2Name: '',
   ownerName: '',
   hasCRM: false,
+  hidePollPrice: false,
   days: [
     { procedures: [{ name: 'Botox 3 Regiões',                price: '', vagas: '', installments: '', installmentPrice: '' }], showInstallments: false, condition: '' },
     { procedures: [{ name: 'Preenchimento Facial',            price: '', vagas: '', installments: '', installmentPrice: '' }], showInstallments: false, condition: '' },

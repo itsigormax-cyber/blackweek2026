@@ -748,6 +748,15 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
       </section>
 
       <section className="setup-section">
+        <h2 className="section-title">Configurações de Exibição</h2>
+        <label className="toggle-row">
+          <input type="checkbox" checked={!!config.hidePollPrice} onChange={e => updateField('hidePollPrice', e.target.checked)} />
+          <span>Ocultar valor nas enquetes do WhatsApp</span>
+          <span className="field-hint">— o valor continua configurado aqui, mas não aparece no texto da enquete</span>
+        </label>
+      </section>
+
+      <section className="setup-section">
         <h2 className="section-title">Procedimentos por Dia</h2>
         {DAY_LABELS.map((label, di) => {
           const day = (config.days || DEFAULT_CONFIG.days)[di] || {}
@@ -806,7 +815,7 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
                       <span className="wa-poll-title">ENQUETE</span>
                     </div>
                     <div className="wa-poll-question">
-                      {isMultiDay ? 'Qual vai garantir hoje?' : `${previewProc} por apenas ${previewVal} 🤯`}
+                      {isMultiDay ? 'Qual vai garantir hoje?' : config.hidePollPrice ? `${previewProc} 🤯` : `${previewProc} por apenas ${previewVal} 🤯`}
                     </div>
                     <div className="wa-poll-options">
                       {isMultiDay ? (
@@ -1165,6 +1174,13 @@ export default function BlackWeek() {
     })
   }, [config.firstAccessDate, config.blackStart]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clínicas que iniciaram a partir de 04/11 — só exibem tarefas a partir dessa data
+  const LATE_START_CLINICS = ['botobarra', 'botoclinic-ipatinga']
+  const visibleTasks = useMemo(() => {
+    if (!currentUser || !LATE_START_CLINICS.includes(currentUser.clinic_id)) return adjustedTasks
+    return adjustedTasks.filter(t => !t.date || t.date >= '2026-11-04')
+  }, [adjustedTasks, currentUser?.clinic_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light'
     setTheme(next)
@@ -1411,7 +1427,7 @@ export default function BlackWeek() {
   ]
 
   const doneTasks = Object.values(taskStates).filter(s => s?.status === 'done').length
-  const totalVisible = adjustedTasks.filter(t => canSeeTask(t, currentUser.role)).length
+  const totalVisible = visibleTasks.filter(t => canSeeTask(t, currentUser.role)).length
 
   return (
     <div className={`bw-app${activeTab === 'mindmap' ? ' mm-mode' : ''}`} data-theme={theme}>
@@ -1443,13 +1459,13 @@ export default function BlackWeek() {
 
       <main className={`bw-main${activeTab === 'mindmap' ? ' mm-active' : ''}`}>
         {activeTab === 'today' && (
-          <TodayTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={adjustedTasks} />
+          <TodayTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={visibleTasks} />
         )}
         {activeTab === 'calendar' && (
-          <CalendarTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={adjustedTasks} />
+          <CalendarTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={visibleTasks} />
         )}
         {activeTab === 'playbook' && (
-          <PlaybookTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={adjustedTasks} />
+          <PlaybookTab taskStates={taskStates} config={config} currentUser={currentUser} onStatusChange={handleStatusChange} onCopy={handleCopy} tasks={visibleTasks} />
         )}
         {activeTab === 'crm' && <CRMTab crm={crm} onCrmChange={handleCrmChange} />}
         {activeTab === 'setup' && (
@@ -2011,6 +2027,9 @@ body {
 .day-label { font-weight: 700; font-size: 15px; }
 .toggle-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2); cursor: pointer; }
 .toggle-label:hover { color: var(--text); }
+.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; color: var(--text); }
+.toggle-row input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+.toggle-row:hover { opacity: .85; }
 .day-config-body { display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
 .day-config-form { display: flex; flex-direction: column; gap: 6px; }
 .proc-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
