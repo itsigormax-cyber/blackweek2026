@@ -765,7 +765,9 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
           const previewProc = firstProc.name || '[Procedimento]'
           const previewVal = firstProc.price ? `R$${firstProc.price}` : '[Valor]'
           const previewCond = day.condition || ''
-          const isMultiDay = di === 3
+          const isMultiProc = procs.length > 1
+          const isMultiDayTemplate = di === 3
+          const isMultiDay = isMultiDayTemplate || isMultiProc
           return (
             <div key={di} className="day-config card">
               <div className="day-config-header">
@@ -815,10 +817,21 @@ function SetupTab({ config, onConfigChange, currentUser, users, onUserAction }) 
                       <span className="wa-poll-title">ENQUETE</span>
                     </div>
                     <div className="wa-poll-question">
-                      {isMultiDay ? 'Qual vai garantir hoje?' : `${previewProc} 🤯`}
+                      {isMultiProc
+                        ? 'Qual você quer garantir hoje? 🤩'
+                        : isMultiDayTemplate
+                          ? 'Qual vai garantir hoje?'
+                          : `${previewProc} 🤯`}
                     </div>
                     <div className="wa-poll-options">
-                      {isMultiDay ? (
+                      {isMultiProc ? (
+                        procs.map((p, i) => (
+                          <div key={i} className="wa-poll-option">
+                            <span className="wa-radio" />
+                            <span>{p.name || `[Procedimento ${i+1}]`} por apenas {p.price ? `R$${p.price}` : '[Valor]'}</span>
+                          </div>
+                        ))
+                      ) : isMultiDayTemplate ? (
                         procs.length > 0 ? procs.map((p, i) => (
                           <div key={i} className="wa-poll-option">
                             <span className="wa-radio" />
