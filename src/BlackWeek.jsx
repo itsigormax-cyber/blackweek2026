@@ -21,7 +21,7 @@ const CLINIC_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/
 // ─── Date calibration constants ───────────────────────────────────────────────
 const REFERENCE_BLACK = '2026-11-09'   // Black Day 1 (fixed for 2026)
 const REFERENCE_START = '2026-10-22'   // Earliest task in the original timeline
-const CAMPAIGN_PHASES_FIXED = new Set(['day1','day2','day3','day4','day5','closing','post'])
+const CAMPAIGN_PHASES_FIXED = new Set(['day1','day2','day3','day4','day5','closing','post','countdown','training','precheck','week_before'])
 
 // Proportionally remaps a pre-campaign date to fit between firstAccessDate and Black Day 1
 function adjustTaskDate(iso, config) {
@@ -1187,11 +1187,11 @@ export default function BlackWeek() {
     })
   }, [config.firstAccessDate, config.blackStart]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clínicas que iniciaram a partir de 04/11 — só exibem tarefas a partir dessa data
+  // Clínicas que iniciaram tarde — só exibem tarefas a partir de hoje (08/11)
   const LATE_START_CLINICS = ['botobarra', 'botoclinic-ipatinga']
   const visibleTasks = useMemo(() => {
     if (!currentUser || !LATE_START_CLINICS.includes(currentUser.clinic_id)) return adjustedTasks
-    return adjustedTasks.filter(t => !t.date || t.date >= '2026-11-04')
+    return adjustedTasks.filter(t => !t.date || t.date >= '2026-11-08')
   }, [adjustedTasks, currentUser?.clinic_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleTheme = () => {
