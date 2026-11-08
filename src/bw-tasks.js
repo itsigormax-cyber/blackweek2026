@@ -123,8 +123,9 @@ const COUNTDOWN = [
   T('cd_05b','countdown','2026-11-05',null,'c1','private','Chamar quem recebeu link e não entrou (dia 2)',null,[{label:'Mensagem',text:'Boa tarde, [Nome]! Tudo bem? [Nome], conseguiu entrar no grupo??'},{label:'Se não responder',text:'[mande uma figurinha]\n[depois mande um áudio pessoal]'}],null),
   T('cd_06a','countdown','2026-11-06','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥 FALTAM 3 DIAS BLACK WEEK {{CLINICA}}'}],null),
   T('cd_07a','countdown','2026-11-07','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥 FALTAM 2 DIAS BLACK WEEK {{CLINICA}}'}],null),
-  T('cd_08a','countdown','2026-11-08','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥 FALTA 1 DIA BLACK WEEK {{CLINICA}}'}],null),
+  T('cd_08a','countdown','2026-11-08','08:00','c1','group','Mudar nome do grupo',null,[{label:'Nome',text:'🔥AMANHÃ 10:00 BLACK WEEK {{CLINICA}}'}],null),
   T('cd_08b','countdown','2026-11-08',null,'c1','private','Chamar quem recebeu link e não entrou (último dia)',null,[{label:'Mensagem',text:'Boa tarde, [Nome]! Tudo bem? [Nome], conseguiu entrar no grupo??'},{label:'Se não responder: figurinha + áudio',text:'Aqui é a [seu nome] da {{CLINICA}}, amanhã começa a Black Week e não te vi no grupo ainda!'}],null),
+  T('cd_08c','countdown','2026-11-08',null,'c1','group','Enviar vídeo de parabéns no grupo','Enviar o vídeo de parabéns para todos do grupo',null,null),
 ]
 
 // ─── TREINO – 06/11 ──────────────────────────────────────────────────────────
